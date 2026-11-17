@@ -5,6 +5,8 @@
             'initialItems' => old('items', [['medicine_name' => '', 'principal_name' => '', 'clinical_justification' => '']]),
             'initialDoctor' => old('doctor_name', ''),
             'initialNotes' => old('notes', ''),
+            'hasOldInput' => session()->hasOldInput(),
+            'hasFlashSuccess' => session()->has('submitted_summary'),
         ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}
     </script>
 

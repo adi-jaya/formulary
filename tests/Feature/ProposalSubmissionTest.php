@@ -139,3 +139,34 @@ it('validates maximum 2000 characters on notes and clinical justification', func
         ],
     ])->assertSessionHasErrors(['notes', 'items.0.clinical_justification']);
 });
+
+it('renders hydration json carrier with server flags for fresh load, validation errors, and flash success', function (): void {
+    // 1. Fresh load
+    $response = $this->get(route('proposals.create'))->assertOk();
+    $content = $response->getContent();
+    expect($content)->toContain('"hasOldInput":false')
+        ->and($content)->toContain('"hasFlashSuccess":false');
+
+    // 2. Validation error redirect
+    $invalidResponse = $this->from(route('proposals.create'))->post(route('proposals.store'), [
+        'doctor_name' => '',
+        'proposal_date' => '2026-11-17',
+        'items' => [['medicine_name' => 'Obat A', 'principal_name' => 'Sanbe']],
+    ]);
+    $invalidResponse->assertRedirect(route('proposals.create'));
+
+    $followedInvalid = $this->followRedirects($invalidResponse);
+    expect($followedInvalid->getContent())->toContain('"hasOldInput":true')
+        ->and($followedInvalid->getContent())->toContain('"hasFlashSuccess":false');
+
+    // 3. Successful submission redirect
+    $validResponse = $this->from(route('proposals.create'))->post(route('proposals.store'), [
+        'doctor_name' => 'dr. Nadhir Sp.U',
+        'proposal_date' => '2026-11-17',
+        'items' => [['medicine_name' => 'Obat B', 'principal_name' => 'Kalbe']],
+    ]);
+    $validResponse->assertRedirect(route('proposals.create'));
+
+    $followedValid = $this->followRedirects($validResponse);
+    expect($followedValid->getContent())->toContain('"hasFlashSuccess":true');
+});
