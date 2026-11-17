@@ -28,6 +28,7 @@ class ProposalRecapController extends Controller
             'period_year' => $request->query('period_year'),
             'doctor' => $request->query('doctor'),
             'principal' => $request->query('principal'),
+            'review_status' => $request->query('review_status'),
             'date_from' => $request->query('date_from'),
             'date_to' => $request->query('date_to'),
             'search' => $request->query('search'),
@@ -64,6 +65,15 @@ class ProposalRecapController extends Controller
             ->orderBy('principal_name')
             ->pluck('principal_name');
 
+        $availableReviewStatuses = [
+            ['value' => 'pending', 'label' => 'Menunggu Telaah'],
+            ['value' => 'approved', 'label' => 'Disetujui'],
+            ['value' => 'rejected', 'label' => 'Ditolak'],
+            ['value' => 'substituted', 'label' => 'Substitusi'],
+        ];
+
+        $currentReviewStatus = (string) $request->query('review_status', '');
+
         $items = $activeTab === 'items'
             ? $query->paginate(25)->withQueryString()
             : null;
@@ -88,6 +98,8 @@ class ProposalRecapController extends Controller
             'availableYears',
             'availableDoctors',
             'availablePrincipals',
+            'availableReviewStatuses',
+            'currentReviewStatus',
             'liveCsvUrl',
             'importDataFormula',
             'feedToken',
