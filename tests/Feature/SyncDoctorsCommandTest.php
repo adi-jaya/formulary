@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -74,4 +75,24 @@ it('handles api failure gracefully without corrupting local snapshot and exits w
 
     $snapshotContent = Storage::disk('local')->get('doctors_snapshot.json');
     expect(json_decode((string) $snapshotContent, true))->toBe($existingSnapshot);
+});
+
+it('registers backup and sync doctors commands in the console schedule', function (): void {
+    $schedule = app(Schedule::class);
+
+    $events = collect($schedule->events());
+    $commands = $events->map(fn ($event) => $event->command);
+
+    expect($commands->some(fn ($cmd) => str_contains((string) $cmd, 'formulary:backup')))->toBeTrue()
+        ->and($commands->some(fn ($cmd) => str_contains((string) $cmd, 'formulary:sync-doctors')))->toBeTrue();
+
+    $backupEvent = $events->first(fn ($event) => str_contains((string) $event->command, 'formulary:backup'));
+    expect($backupEvent)->not->toBeNull()
+        ->and($backupEvent->expression)->toBe('0 2 * * *')
+        ->and($backupEvent->runInBackground)->toBeTrue();
+
+    $syncEvent = $events->first(fn ($event) => str_contains((string) $event->command, 'formulary:sync-doctors'));
+    expect($syncEvent)->not->toBeNull()
+        ->and($syncEvent->expression)->toBe('0 6,18 * * *')
+        ->and($syncEvent->runInBackground)->toBeTrue();
 });
