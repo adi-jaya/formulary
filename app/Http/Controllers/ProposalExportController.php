@@ -25,10 +25,13 @@ class ProposalExportController extends Controller
             abort(403, 'Akses live CSV feed ditolak: token tidak valid.');
         }
 
+        $includeReview = $request->boolean('include_review');
+
         $filters = [
             'period_year' => $request->query('period_year'),
             'doctor' => $request->query('doctor'),
             'principal' => $request->query('principal'),
+            'review_status' => $request->query('review_status'),
             'date_from' => $request->query('date_from'),
             'date_to' => $request->query('date_to'),
             'search' => $request->query('search'),
@@ -41,48 +44,95 @@ class ProposalExportController extends Controller
             'Pragma' => 'no-cache',
         ];
 
-        return response()->stream(function () use ($filters): void {
+        return response()->stream(function () use ($filters, $includeReview): void {
             $handle = fopen('php://output', 'w');
             if ($handle === false) {
                 return;
             }
 
-            fputcsv($handle, [
-                'No',
-                'Tanggal',
-                'Tahun Periode',
-                'Nama Dokter',
-                'Nama Obat',
-                'Nama Principle',
-                'Alasan Klinis',
-                'Catatan Pengusul',
-            ]);
+            if ($includeReview) {
+                fputcsv($handle, [
+                    'No',
+                    'Tanggal',
+                    'Tahun Periode',
+                    'Nama Dokter',
+                    'Nama Obat',
+                    'Nama Principle',
+                    'Alasan Klinis',
+                    'Catatan Pengusul',
+                    'Waktu Input',
+                    'Status Telaah',
+                    'Catatan Telaah',
+                    'Penelaah',
+                ]);
+            } else {
+                fputcsv($handle, [
+                    'No',
+                    'Tanggal',
+                    'Tahun Periode',
+                    'Nama Dokter',
+                    'Nama Obat',
+                    'Nama Principle',
+                    'Alasan Klinis',
+                    'Catatan Pengusul',
+                ]);
+            }
 
             $query = ProposalItemRecapQuery::build($filters);
             $no = 1;
 
-            $query->chunk(250, function ($items) use ($handle, &$no): void {
+            $query->chunk(250, function ($items) use ($handle, $includeReview, &$no): void {
                 foreach ($items as $item) {
-                    $principal = $item->principal_name !== null
+                    $principal = $item->principal_name !== null && $item->principal_name !== ''
                         ? SpreadsheetSanitizer::sanitizeCell($item->principal_name)
                         : '-';
-                    $justification = $item->clinical_justification !== null
+                    $justification = $item->clinical_justification !== null && $item->clinical_justification !== ''
                         ? SpreadsheetSanitizer::sanitizeCell($item->clinical_justification)
                         : '-';
-                    $notes = $item->notes !== null
+                    $notes = $item->notes !== null && $item->notes !== ''
                         ? SpreadsheetSanitizer::sanitizeCell($item->notes)
                         : '-';
 
-                    fputcsv($handle, [
-                        $no++,
-                        Carbon::parse($item->proposal_date)->format('d/m/Y'),
-                        $item->period_year,
-                        SpreadsheetSanitizer::sanitizeCell($item->doctor_name),
-                        SpreadsheetSanitizer::sanitizeCell($item->medicine_name),
-                        $principal,
-                        $justification,
-                        $notes,
-                    ]);
+                    if ($includeReview) {
+                        $createdAt = $item->created_at !== null
+                            ? Carbon::parse($item->created_at)->format('d/m/Y H:i:s')
+                            : '-';
+                        $reviewStatus = $item->review_status !== null && $item->review_status !== ''
+                            ? SpreadsheetSanitizer::sanitizeCell($item->review_status)
+                            : 'pending';
+                        $reviewNotes = $item->review_notes !== null && $item->review_notes !== ''
+                            ? SpreadsheetSanitizer::sanitizeCell($item->review_notes)
+                            : '-';
+                        $reviewerName = $item->reviewer_name !== null && $item->reviewer_name !== ''
+                            ? SpreadsheetSanitizer::sanitizeCell($item->reviewer_name)
+                            : '-';
+
+                        fputcsv($handle, [
+                            $no++,
+                            Carbon::parse($item->proposal_date)->format('d/m/Y'),
+                            $item->period_year,
+                            SpreadsheetSanitizer::sanitizeCell($item->doctor_name),
+                            SpreadsheetSanitizer::sanitizeCell($item->medicine_name),
+                            $principal,
+                            $justification,
+                            $notes,
+                            $createdAt,
+                            $reviewStatus,
+                            $reviewNotes,
+                            $reviewerName,
+                        ]);
+                    } else {
+                        fputcsv($handle, [
+                            $no++,
+                            Carbon::parse($item->proposal_date)->format('d/m/Y'),
+                            $item->period_year,
+                            SpreadsheetSanitizer::sanitizeCell($item->doctor_name),
+                            SpreadsheetSanitizer::sanitizeCell($item->medicine_name),
+                            $principal,
+                            $justification,
+                            $notes,
+                        ]);
+                    }
                 }
             });
 
@@ -103,6 +153,7 @@ class ProposalExportController extends Controller
             'period_year' => $request->query('period_year'),
             'doctor' => $request->query('doctor'),
             'principal' => $request->query('principal'),
+            'review_status' => $request->query('review_status'),
             'date_from' => $request->query('date_from'),
             'date_to' => $request->query('date_to'),
             'search' => $request->query('search'),

@@ -33,6 +33,10 @@ class ProposalExportService
         $options->setColumnWidth(25, 6);  // Nama Principle
         $options->setColumnWidth(45, 7);  // Alasan Klinis
         $options->setColumnWidth(35, 8);  // Catatan Pengusul
+        $options->setColumnWidth(20, 9);  // Waktu Input
+        $options->setColumnWidth(16, 10); // Status Telaah
+        $options->setColumnWidth(35, 11); // Catatan Telaah
+        $options->setColumnWidth(25, 12); // Penelaah
 
         $tempPath = tempnam(sys_get_temp_dir(), 'formulary_export_').'.xlsx';
 
@@ -93,6 +97,10 @@ class ProposalExportService
             'Nama Principle',
             'Alasan Klinis',
             'Catatan Pengusul',
+            'Waktu Input',
+            'Status Telaah',
+            'Catatan Telaah',
+            'Penelaah',
         ], $headerStyle));
 
         // 3. Data Rows
@@ -101,14 +109,26 @@ class ProposalExportService
 
         $query->chunk(250, function ($items) use ($writer, $dataStyle, &$no): void {
             foreach ($items as $item) {
-                $principal = $item->principal_name !== null
+                $principal = $item->principal_name !== null && $item->principal_name !== ''
                     ? SpreadsheetSanitizer::sanitizeCell($item->principal_name)
                     : '-';
-                $justification = $item->clinical_justification !== null
+                $justification = $item->clinical_justification !== null && $item->clinical_justification !== ''
                     ? SpreadsheetSanitizer::sanitizeCell($item->clinical_justification)
                     : '-';
-                $notes = $item->notes !== null
+                $notes = $item->notes !== null && $item->notes !== ''
                     ? SpreadsheetSanitizer::sanitizeCell($item->notes)
+                    : '-';
+                $createdAt = $item->created_at !== null
+                    ? Carbon::parse($item->created_at)->format('d/m/Y H:i:s')
+                    : '-';
+                $reviewStatus = $item->review_status !== null && $item->review_status !== ''
+                    ? SpreadsheetSanitizer::sanitizeCell($item->review_status)
+                    : 'pending';
+                $reviewNotes = $item->review_notes !== null && $item->review_notes !== ''
+                    ? SpreadsheetSanitizer::sanitizeCell($item->review_notes)
+                    : '-';
+                $reviewerName = $item->reviewer_name !== null && $item->reviewer_name !== ''
+                    ? SpreadsheetSanitizer::sanitizeCell($item->reviewer_name)
                     : '-';
 
                 $writer->addRow(Row::fromValues([
@@ -120,6 +140,10 @@ class ProposalExportService
                     $principal,
                     $justification,
                     $notes,
+                    $createdAt,
+                    $reviewStatus,
+                    $reviewNotes,
+                    $reviewerName,
                 ], $dataStyle));
             }
         });
