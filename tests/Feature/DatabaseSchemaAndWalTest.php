@@ -6,6 +6,7 @@ use App\Models\Proposal;
 use App\Models\ProposalItem;
 use App\Models\ReferenceMedicine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -52,4 +53,13 @@ it('persists proposals with items and cascades on delete', function (): void {
 
     expect(ProposalItem::count())->toBe(0)
         ->and(ReferenceMedicine::count())->toBe(1);
+});
+
+it('has indexes on proposals table for doctor_name and composite period_year proposal_date', function (): void {
+    $this->artisan('migrate')->assertSuccessful();
+
+    $indices = collect(DB::select("PRAGMA index_list('proposals')"))->pluck('name');
+
+    expect($indices->some(fn ($name) => str_contains((string) $name, 'doctor_name')))->toBeTrue()
+        ->and($indices->some(fn ($name) => str_contains((string) $name, 'period_year')))->toBeTrue();
 });
