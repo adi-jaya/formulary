@@ -55,7 +55,7 @@ class DatabaseBackupCommand extends Command
         $retentionOption = $this->option('retention');
         $retentionDays = is_numeric($retentionOption) && (int) $retentionOption > 0
             ? (int) $retentionOption
-            : (int) config('formulary.backup_retention_days', 30);
+            : max(1, (int) config('formulary.backup_retention_days', 30));
 
         $thresholdTimestamp = now()->subDays($retentionDays)->getTimestamp();
         $backupFiles = File::glob(rtrim($backupPath, '/\\').DIRECTORY_SEPARATOR.'formulary_*.sqlite') ?: [];
