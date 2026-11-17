@@ -13,7 +13,7 @@ Route::get('/', [ProposalController::class, 'create'])->name('proposals.create')
 Route::post('/proposals', [ProposalController::class, 'store'])->middleware('throttle:30,1')->name('proposals.store');
 
 Route::get('/recap', [ProposalRecapController::class, 'index'])->name('proposals.index');
-Route::post('/recap/auth', [ProposalReviewController::class, 'auth'])->name('recap.auth');
+Route::post('/recap/auth', [ProposalReviewController::class, 'auth'])->middleware('throttle:10,1')->name('recap.auth');
 Route::post('/recap/logout', [ProposalReviewController::class, 'logout'])->name('recap.logout');
 
 Route::patch('/proposals/items/{item}/review', [ProposalReviewController::class, 'update'])->name('proposals.items.review');

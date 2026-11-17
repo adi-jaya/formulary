@@ -55,7 +55,9 @@ class GoogleSheetSyncService
                 'created_at' => $createdAtStr,
                 'review_status' => $item->review_status ?? 'pending',
                 'review_notes' => $item->review_notes ? SpreadsheetSanitizer::sanitizeCell($item->review_notes) : '-',
-                'reviewer_name' => ($item->reviewer_name !== null && $item->reviewer_name !== '') ? $item->reviewer_name : '-',
+                'reviewer_name' => ($item->reviewer_name !== null && $item->reviewer_name !== '')
+                    ? SpreadsheetSanitizer::sanitizeCell($item->reviewer_name)
+                    : '-',
             ];
         }
 
@@ -147,7 +149,9 @@ class GoogleSheetSyncService
                     'created_at' => $createdAtStr,
                     'review_status' => $item->review_status ?? 'pending',
                     'review_notes' => $item->review_notes ? SpreadsheetSanitizer::sanitizeCell($item->review_notes) : '-',
-                    'reviewer_name' => ($item->reviewer_name !== null && $item->reviewer_name !== '') ? $item->reviewer_name : '-',
+                    'reviewer_name' => ($item->reviewer_name !== null && $item->reviewer_name !== '')
+                    ? SpreadsheetSanitizer::sanitizeCell($item->reviewer_name)
+                    : '-',
                 ];
             }
 
