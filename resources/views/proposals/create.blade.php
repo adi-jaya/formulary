@@ -57,7 +57,34 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('proposals.store') }}" @submit="submitting = true" class="space-y-6">
+        <!-- Unsaved Draft Restored Notice Banner -->
+        <div x-show="isDraftRestored"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="rounded-xl bg-amber-50 border border-amber-200 p-3.5 flex items-center justify-between text-xs text-amber-900 shadow-xs"
+             style="display: none;">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Memulihkan draf usulan belum terkirim dari penyimpanan perangkat Anda.</span>
+            </div>
+            <button type="button" @click="clearDraft()" class="font-semibold text-rose-700 hover:text-rose-900 underline ml-3 shrink-0">
+                Kosongkan & Mulai Baru
+            </button>
+        </div>
+
+        <form id="proposal-form"
+              method="POST"
+              action="{{ route('proposals.store') }}"
+              @submit="submitting = true"
+              @keydown.ctrl.enter.prevent="submitForm()"
+              @keydown.meta.enter.prevent="submitForm()"
+              class="space-y-6">
             @csrf
 
             <!-- Card Header Form: Dokter & Tanggal -->
@@ -196,6 +223,7 @@
                                     <input type="text"
                                            :name="`items[${index}][medicine_name]`"
                                            x-model="item.medicine_name"
+                                           data-medicine-input
                                            @input="handleInput($event)"
                                            @keydown.arrow-down.prevent="navigateDown()"
                                            @keydown.arrow-up.prevent="navigateUp()"
@@ -268,6 +296,9 @@
                                           maxlength="2000"
                                           placeholder="Uraikan efikasi, keunggulan dibanding formularium lama, atau urgensi terapi..."
                                           class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden transition-all resize-y"></textarea>
+                                <div class="flex justify-end text-[11px] text-slate-400 mt-1">
+                                    <span x-text="(item.clinical_justification || '').length"></span> / 2.000 karakter
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -284,6 +315,9 @@
                               maxlength="2000"
                               placeholder="Tuliskan catatan khusus terkait ketersediaan di distributor, alternatif substitusi, atau komparasi harga bila ada..."
                               class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden transition-all resize-y @error('notes') border-rose-500 bg-rose-50/30 @enderror"></textarea>
+                    <div class="flex justify-end text-[11px] text-slate-400 mt-1">
+                        <span x-text="(notes || '').length"></span> / 2.000 karakter
+                    </div>
                     @error('notes')
                         <p class="mt-1 text-xs text-rose-600 font-medium">{{ $message }}</p>
                     @enderror
@@ -311,6 +345,31 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                         </svg>
                         <span x-text="submitting ? 'Mengirim Usulan...' : `Kirim Usulan Obat (${items.length} Obat)`"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Safe-Area Mobile Floating Action Bar -->
+            <div x-show="!isKeyboardVisible"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-4"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 translate-y-4"
+                 class="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-3 sm:hidden z-30 shadow-xl pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+                <div class="flex items-center justify-between gap-3 max-w-lg mx-auto">
+                    <div class="text-xs font-medium text-slate-600">
+                        Total: <span class="font-bold text-slate-900" x-text="items.length"></span> obat
+                    </div>
+                    <button type="button"
+                            @click="submitForm()"
+                            :disabled="submitting"
+                            class="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs shadow-sm transition-all disabled:opacity-50">
+                        <svg x-show="!submitting" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span x-text="submitting ? 'Mengirim...' : 'Kirim Usulan'"></span>
                     </button>
                 </div>
             </div>

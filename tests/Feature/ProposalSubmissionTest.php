@@ -170,3 +170,30 @@ it('renders hydration json carrier with server flags for fresh load, validation 
     $followedValid = $this->followRedirects($validResponse);
     expect($followedValid->getContent())->toContain('"hasFlashSuccess":true');
 });
+
+it('renders draft restoration banner, character counters, mobile floating bar, and shortcut handlers in proposal form', function (): void {
+    $response = $this->get(route('proposals.create'))->assertOk();
+
+    // 1. Draft restoration banner markup & button
+    $response->assertSee('x-show="isDraftRestored"', false)
+        ->assertSee('Memulihkan draf usulan belum terkirim dari penyimpanan perangkat Anda.')
+        ->assertSee('@click="clearDraft()"', false);
+
+    // 2. Form shortcut attributes and id
+    $response->assertSee('id="proposal-form"', false)
+        ->assertSee('@keydown.ctrl.enter.prevent="submitForm()"', false)
+        ->assertSee('@keydown.meta.enter.prevent="submitForm()"', false);
+
+    // 3. Medicine input autofocus attribute hook
+    $response->assertSee('data-medicine-input', false);
+
+    // 4. Character counters for clinical justification and notes
+    $response->assertSee('(item.clinical_justification || \'\').length', false)
+        ->assertSee('(notes || \'\').length', false)
+        ->assertSee('/ 2.000 karakter', false);
+
+    // 5. Mobile floating action bar with safe area inset and submit binding
+    $response->assertSee('x-show="!isKeyboardVisible"', false)
+        ->assertSee('env(safe-area-inset-bottom', false)
+        ->assertSee('@click="submitForm()"', false);
+});
