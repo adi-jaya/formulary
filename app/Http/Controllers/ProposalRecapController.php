@@ -64,7 +64,9 @@ class ProposalRecapController extends Controller
             ->orderBy('principal_name')
             ->pluck('principal_name');
 
-        $items = $query->paginate(25)->withQueryString();
+        $items = $activeTab === 'items'
+            ? $query->paginate(25)->withQueryString()
+            : null;
         $consensusItems = $activeTab === 'consensus'
             ? ProposalConsensusQuery::paginate($filters, 15)
             : null;
