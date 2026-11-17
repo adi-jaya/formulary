@@ -8,7 +8,9 @@ use App\Models\Proposal;
 use App\Support\TextNormalizer;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 class DoctorDirectoryService
@@ -98,6 +100,30 @@ class DoctorDirectoryService
     }
 
     /**
+     * Refreshes active doctors directly from API, updating local cache and snapshot.
+     * Throws RuntimeException if the API request fails, preserving existing snapshot.
+     *
+     * @return list<array{name: string, clinic: ?string}>
+     *
+     * @throws RuntimeException
+     */
+    public function refreshFromApi(): array
+    {
+        Cache::forget(self::CACHE_KEY);
+        Cache::forget('formulary:active_doctors_cache');
+
+        $doctors = $this->fetchDoctorsFromApi();
+
+        if ($doctors === null) {
+            Log::warning('Gagal menyinkronkan data dokter dari API Portal Sifast: respons API kosong atau gagal dihubungi.');
+
+            throw new RuntimeException('Gagal menyinkronkan data dokter dari API Portal Sifast.');
+        }
+
+        return $doctors;
+    }
+
+    /**
      * Resolves active doctors from cache, API, or local snapshot.
      *
      * @return list<array{name: string, clinic: ?string}>
@@ -110,52 +136,7 @@ class DoctorDirectoryService
             return $cached;
         }
 
-        $apiUrl = (string) config('formulary.doctor_api_url');
-        $timeout = (int) config('formulary.doctor_api_timeout', 10);
-        $ttlHours = (int) config('formulary.doctor_cache_ttl_hours', 12);
-
-        $apiDoctors = null;
-
-        if ($apiUrl !== '') {
-            try {
-                $response = Http::timeout($timeout)
-                    ->retry(2, 200, throw: false)
-                    ->acceptJson()
-                    ->get($apiUrl);
-
-                if ($response->successful()) {
-                    $json = $response->json();
-                    if (is_array($json) && data_get($json, 'success') === true && is_array(data_get($json, 'data'))) {
-                        $activeDoctors = [];
-                        /** @var array<string, mixed> $row */
-                        foreach (data_get($json, 'data') as $row) {
-                            if (! empty($row['isAktif']) && ! empty($row['namaDokter'])) {
-                                $name = TextNormalizer::collapseWhitespace((string) $row['namaDokter']);
-                                $clinic = isset($row['poli'][0]['namaPoli'])
-                                    ? TextNormalizer::collapseWhitespace((string) $row['poli'][0]['namaPoli'])
-                                    : null;
-
-                                $activeDoctors[] = [
-                                    'name' => $name,
-                                    'clinic' => $clinic !== '' ? $clinic : null,
-                                ];
-                            }
-                        }
-
-                        if (! empty($activeDoctors)) {
-                            Storage::disk('local')->put(
-                                self::SNAPSHOT_FILE,
-                                json_encode($activeDoctors, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
-                            );
-                            Cache::put(self::CACHE_KEY, $activeDoctors, now()->addHours($ttlHours));
-                            $apiDoctors = $activeDoctors;
-                        }
-                    }
-                }
-            } catch (Throwable) {
-                $apiDoctors = null;
-            }
-        }
+        $apiDoctors = $this->fetchDoctorsFromApi();
 
         if ($apiDoctors !== null) {
             return $apiDoctors;
@@ -178,5 +159,63 @@ class DoctorDirectoryService
         }
 
         return [];
+    }
+
+    /**
+     * Fetches active doctors from API and stores them to snapshot and cache if successful.
+     *
+     * @return list<array{name: string, clinic: ?string}>|null
+     */
+    private function fetchDoctorsFromApi(): ?array
+    {
+        $apiUrl = (string) config('formulary.doctor_api_url');
+        $timeout = (int) config('formulary.doctor_api_timeout', 10);
+        $ttlHours = (int) config('formulary.doctor_cache_ttl_hours', 12);
+
+        if ($apiUrl === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout($timeout)
+                ->retry(2, 200, throw: false)
+                ->acceptJson()
+                ->get($apiUrl);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                if (is_array($json) && data_get($json, 'success') === true && is_array(data_get($json, 'data'))) {
+                    $activeDoctors = [];
+                    /** @var array<string, mixed> $row */
+                    foreach (data_get($json, 'data') as $row) {
+                        if (! empty($row['isAktif']) && ! empty($row['namaDokter'])) {
+                            $name = TextNormalizer::collapseWhitespace((string) $row['namaDokter']);
+                            $clinic = isset($row['poli'][0]['namaPoli'])
+                                ? TextNormalizer::collapseWhitespace((string) $row['poli'][0]['namaPoli'])
+                                : null;
+
+                            $activeDoctors[] = [
+                                'name' => $name,
+                                'clinic' => $clinic !== '' ? $clinic : null,
+                            ];
+                        }
+                    }
+
+                    if (! empty($activeDoctors)) {
+                        Storage::disk('local')->put(
+                            self::SNAPSHOT_FILE,
+                            json_encode($activeDoctors, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+                        );
+                        Cache::put(self::CACHE_KEY, $activeDoctors, now()->addHours($ttlHours));
+
+                        return $activeDoctors;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            Log::warning('Panggilan API dokter gagal: '.$e->getMessage());
+        }
+
+        return null;
     }
 }

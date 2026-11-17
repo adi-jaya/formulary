@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Proposal;
 use App\Services\DoctorDirectoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -128,4 +129,34 @@ it('provides json suggestions for doctors via endpoint only when query is provid
     $response = $this->getJson(route('suggestions.doctors', ['q' => 'ahmad']))->assertOk();
     expect($response->json('data'))->toHaveCount(1)
         ->and($response->json('data.0.name'))->toBe('dr. Ahmad Nadhir Sp. U. M. Ked. Klin');
+});
+
+it('refreshes doctors from api unconditionally, updates snapshot and cache, and preserves snapshot on failure', function (): void {
+    $service = app(DoctorDirectoryService::class);
+
+    // 1. Successful refresh
+    Http::fake([
+        '*' => Http::response([
+            'success' => true,
+            'data' => [[
+                'kdDokter' => '999',
+                'namaDokter' => 'dr. Dokter Baru Sp.PD',
+                'isAktif' => true,
+                'poli' => [['kdPoli' => 'INT', 'namaPoli' => 'Klinik Penyakit Dalam']],
+            ]],
+        ], 200),
+    ]);
+
+    $result = $service->refreshFromApi();
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['name'])->toBe('dr. Dokter Baru Sp.PD');
+
+    // 2. Failure preserves existing snapshot and throws exception
+    Http::swap(new Factory);
+    Http::fake([
+        '*' => Http::response([], 500),
+    ]);
+
+    expect(fn () => $service->refreshFromApi())->toThrow(RuntimeException::class);
+    expect($service->listDoctors('Dokter Baru'))->toHaveCount(1);
 });
