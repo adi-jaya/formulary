@@ -71,8 +71,9 @@ class GoogleSheetSyncService
                     'rows' => $rows,
                 ]);
 
-            if (! $response->successful()) {
-                Log::warning('Sinkronisasi Google Sheet gagal dengan status: '.$response->status());
+            if (! $response->successful() || $response->json('status') !== 'success') {
+                $errDetail = $response->json('message') ?? trim(substr(strip_tags($response->body()), 0, 200));
+                Log::warning("Sinkronisasi Google Sheet gagal (HTTP {$response->status()}): {$errDetail}");
 
                 return false;
             }
@@ -107,8 +108,9 @@ class GoogleSheetSyncService
                         'action' => 'clear_sheet',
                     ]);
 
-                if (! $clearResponse->successful()) {
-                    Log::warning('Pembersihan Google Sheet gagal dengan status: '.$clearResponse->status());
+                if (! $clearResponse->successful() || $clearResponse->json('status') !== 'success') {
+                    $errDetail = $clearResponse->json('message') ?? trim(substr(strip_tags($clearResponse->body()), 0, 200));
+                    Log::warning("Pembersihan Google Sheet gagal (HTTP {$clearResponse->status()}): {$errDetail}");
                 }
             } catch (Throwable $e) {
                 Log::warning('Pengecualian saat membersihkan Google Sheet: '.$e->getMessage());
@@ -165,8 +167,9 @@ class GoogleSheetSyncService
                         'rows' => $rows,
                     ]);
 
-                if (! $response->successful()) {
-                    Log::warning('Sinkronisasi massal Google Sheet gagal dengan status: '.$response->status());
+                if (! $response->successful() || $response->json('status') !== 'success') {
+                    $errDetail = $response->json('message') ?? trim(substr(strip_tags($response->body()), 0, 200));
+                    Log::warning("Sinkronisasi massal Google Sheet gagal (HTTP {$response->status()}): {$errDetail}");
                 } else {
                     $totalSent += count($rows);
                 }

@@ -89,6 +89,27 @@ it('gracefully handles http failures and empty webhook url without throwing exce
     expect($service->pushNewProposal($proposal))->toBeFalse();
 });
 
+it('fails and logs warning when webhook returns 200 with error status payload', function (): void {
+    config()->set('formulary.sheet_webhook_url', 'https://script.google.com/macros/s/test/exec');
+    config()->set('formulary.sheet_webhook_secret', 'secret123');
+
+    Http::fake([
+        'https://script.google.com/*' => Http::response(['status' => 'error', 'message' => 'Unauthorized'], 200),
+    ]);
+
+    $proposal = Proposal::create([
+        'doctor_name' => 'dr. Agus Sp.B',
+        'proposal_date' => '2026-11-17',
+        'period_year' => 2026,
+    ]);
+    $proposal->items()->create([
+        'medicine_name' => 'Ceftriaxone 1g Inj',
+    ]);
+
+    $service = app(GoogleSheetSyncService::class);
+    expect($service->pushNewProposal($proposal))->toBeFalse();
+});
+
 it('tests syncAll sending chunks and triggering clear_sheet when clearFirst is true', function (): void {
     config()->set('formulary.sheet_webhook_url', 'https://script.google.com/macros/s/test/exec');
     config()->set('formulary.sheet_webhook_secret', 'secret123');

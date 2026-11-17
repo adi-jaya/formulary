@@ -129,3 +129,22 @@ it('fails with warning message when FORMULARY_SHEET_WEBHOOK_URL is empty', funct
 
     Http::assertNothingSent();
 });
+
+it('fails with warning when webhook returns error during bulk sync', function (): void {
+    Http::fake([
+        'https://script.google.com/*' => Http::response(['status' => 'error', 'message' => 'Unauthorized'], 200),
+    ]);
+
+    $proposal = Proposal::create([
+        'doctor_name' => 'dr. Hasan Sp.PD',
+        'proposal_date' => '2026-11-17',
+        'period_year' => 2026,
+    ]);
+    $proposal->items()->create([
+        'medicine_name' => 'Amoxicillin 500mg',
+    ]);
+
+    $this->artisan('formulary:sync-sheets --clear')
+        ->expectsOutputToContain('Peringatan: Tidak ada baris usulan yang berhasil dikirim')
+        ->assertFailed();
+});

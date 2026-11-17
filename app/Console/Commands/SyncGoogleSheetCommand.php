@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Queries\ProposalItemRecapQuery;
 use App\Services\GoogleSheetSyncService;
 use Illuminate\Console\Command;
 
@@ -49,6 +50,14 @@ class SyncGoogleSheetCommand extends Command
         $this->info('Memulai sinkronisasi data usulan ke Google Sheets...');
 
         $count = $syncService->syncAll($year, $clearFirst);
+
+        $totalAvailable = ProposalItemRecapQuery::build(array_filter(['period_year' => $year]))->count();
+
+        if ($totalAvailable > 0 && $count === 0) {
+            $this->warn('Peringatan: Tidak ada baris usulan yang berhasil dikirim ke Google Sheets. Periksa status webhook dan storage/logs/laravel.log.');
+
+            return self::FAILURE;
+        }
 
         $this->info("Sinkronisasi massal ke Google Sheets berhasil: {$count} baris usulan terkirim.");
 
