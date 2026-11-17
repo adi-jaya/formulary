@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProposalRequest;
 use App\Models\Proposal;
+use App\Services\GoogleSheetSyncService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -46,8 +47,9 @@ class ProposalController extends Controller
         $fingerprint = hash('sha256', json_encode($normalizedPayload, JSON_THROW_ON_ERROR));
         $acquired = Cache::add("formulary:idempotency:{$fingerprint}", true, now()->addSeconds(15));
 
+        $proposal = null;
         if ($acquired) {
-            DB::transaction(function () use ($normalizedPayload, $carbonDate): void {
+            DB::transaction(function () use ($normalizedPayload, $carbonDate, &$proposal): void {
                 $proposal = Proposal::create([
                     'doctor_name' => $normalizedPayload['doctor_name'],
                     'proposal_date' => $normalizedPayload['proposal_date'],
@@ -56,6 +58,12 @@ class ProposalController extends Controller
                 ]);
 
                 $proposal->items()->createMany($normalizedPayload['items']);
+            });
+        }
+
+        if ($proposal) {
+            defer(function () use ($proposal): void {
+                app(GoogleSheetSyncService::class)->pushNewProposal($proposal);
             });
         }
 
