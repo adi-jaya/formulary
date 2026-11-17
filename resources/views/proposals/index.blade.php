@@ -35,6 +35,92 @@
             </div>
         </div>
 
+        <!-- Segmented Tab Navigation -->
+        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/80">
+            <a href="{{ route('proposals.index', array_merge(request()->except('page'), ['tab' => 'items'])) }}"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all {{ $activeTab === 'items' ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900' }}">
+                <svg class="w-4 h-4 {{ $activeTab === 'items' ? 'text-emerald-700' : 'text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span>Daftar Usulan Item (Tabel)</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'items' ? 'bg-emerald-50 text-emerald-800 font-bold' : 'bg-slate-200 text-slate-700' }}">{{ $totalItems }}</span>
+            </a>
+            <a href="{{ route('proposals.index', array_merge(request()->except('page'), ['tab' => 'consensus'])) }}"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all {{ $activeTab === 'consensus' ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900' }}">
+                <svg class="w-4 h-4 {{ $activeTab === 'consensus' ? 'text-emerald-700' : 'text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Analitik Konsensus Obat</span>
+                @if (($consensusMetrics['consensus_medicines'] ?? 0) > 0)
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
+                        {{ $consensusMetrics['consensus_medicines'] }} Konsensus
+                    </span>
+                @endif
+            </a>
+        </div>
+
+        @if ($activeTab === 'consensus')
+            <div class="space-y-6">
+                <!-- Consensus Header & KPI Cards Placeholder / Summary -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+                    <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <span class="w-2.5 h-5 bg-emerald-600 rounded-full inline-block"></span>
+                        Analitik Konsensus Usulan Obat
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Peringkat usulan obat berdasarkan jumlah dokter spesialis (DPJP) yang mengusulkan secara independen.
+                    </p>
+                </div>
+
+                <!-- Consensus Items Cards -->
+                <div class="space-y-4">
+                    @forelse ($consensusItems ?? [] as $consensusItem)
+                        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-base font-bold text-slate-900">{{ $consensusItem->medicine_name }}</h4>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold {{ $consensusItem->distinct_doctors_count >= 2 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600' }}">
+                                    {{ $consensusItem->distinct_doctors_count }} Dokter
+                                </span>
+                            </div>
+                            @if (!empty($consensusItem->principals))
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ($consensusItem->principals as $principal)
+                                        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
+                                            {{ $principal }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                            <div class="divide-y divide-slate-100 border-t border-slate-100 pt-3">
+                                @foreach ($consensusItem->proposals as $prop)
+                                    <div class="py-2 text-xs">
+                                        <div class="flex items-center justify-between font-semibold text-slate-800">
+                                            <span>{{ $prop->doctor_name }}</span>
+                                            <span class="text-slate-400 font-normal">{{ \Carbon\Carbon::parse($prop->proposal_date)->translatedFormat('d M Y') }}</span>
+                                        </div>
+                                        @if ($prop->clinical_justification)
+                                            <p class="text-slate-600 mt-1 italic leading-relaxed">
+                                                &ldquo;{{ $prop->clinical_justification }}&rdquo;
+                                            </p>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @empty
+                        <div class="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400">
+                            <p class="font-medium text-slate-600">Tidak ada usulan obat konsensus.</p>
+                        </div>
+                    @endforelse
+
+                    @if ($consensusItems && $consensusItems->hasPages())
+                        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                            {{ $consensusItems->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @else
         <!-- 3 Summary Metrics Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
@@ -256,6 +342,7 @@
                 </div>
             @endif
         </div>
+        @endif
 
         <!-- Live Spreadsheet Modal (Alpine.js) -->
         <div x-show="showSpreadsheetModal"

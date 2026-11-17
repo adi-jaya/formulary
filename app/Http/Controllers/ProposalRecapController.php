@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Proposal;
 use App\Models\ProposalItem;
+use App\Queries\ProposalConsensusQuery;
 use App\Queries\ProposalItemRecapQuery;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ class ProposalRecapController extends Controller
      */
     public function index(Request $request): View
     {
+        $activeTab = $request->query('tab') === 'consensus' ? 'consensus' : 'items';
+
         $rawSortBy = $request->query('sort_by');
         $sortBy = $rawSortBy !== null && $rawSortBy !== '' ? (string) $rawSortBy : 'date';
         $sortDir = strtolower((string) $request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
@@ -30,6 +33,7 @@ class ProposalRecapController extends Controller
             'search' => $request->query('search'),
             'sort_by' => $sortBy,
             'sort_dir' => $sortDir,
+            'min_doctors' => $request->query('min_doctors'),
         ];
 
         $query = ProposalItemRecapQuery::build($filters);
@@ -38,6 +42,9 @@ class ProposalRecapController extends Controller
         $totalItems = (clone $query)->count();
         $totalDoctors = (clone $query)->distinct('proposals.doctor_name')->count('proposals.doctor_name');
         $totalProposals = (clone $query)->distinct('proposals.id')->count('proposals.id');
+
+        $periodYear = ! empty($filters['period_year']) ? (int) $filters['period_year'] : null;
+        $consensusMetrics = ProposalConsensusQuery::summaryMetrics($periodYear);
 
         // Dropdown filter options
         $availableYears = Proposal::query()
@@ -58,6 +65,9 @@ class ProposalRecapController extends Controller
             ->pluck('principal_name');
 
         $items = $query->paginate(25)->withQueryString();
+        $consensusItems = $activeTab === 'consensus'
+            ? ProposalConsensusQuery::paginate($filters, 15)
+            : null;
 
         $feedToken = (string) config('formulary.feed_token');
         $csvFeedQuery = array_filter([
@@ -80,7 +90,10 @@ class ProposalRecapController extends Controller
             'importDataFormula',
             'feedToken',
             'sortBy',
-            'sortDir'
+            'sortDir',
+            'activeTab',
+            'consensusMetrics',
+            'consensusItems'
         ));
     }
 }
