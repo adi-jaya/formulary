@@ -84,7 +84,7 @@
               @submit="submitting = true"
               @keydown.ctrl.enter.prevent="submitForm()"
               @keydown.meta.enter.prevent="submitForm()"
-              class="space-y-6">
+              class="space-y-6 pb-16 sm:pb-0">
             @csrf
 
             <!-- Card Header Form: Dokter & Tanggal -->

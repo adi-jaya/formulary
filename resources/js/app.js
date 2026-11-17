@@ -53,11 +53,8 @@ Alpine.data('proposalForm', () => {
                 } catch (e) {
                     console.warn('LocalStorage access error on purge', e);
                 }
-                return;
-            }
-
-            // Priority 2 & 3: Clean fresh form -> restore draft from localStorage if available (skipped if old input exists)
-            if (!initialData.hasOldInput) {
+            } else if (!initialData.hasOldInput) {
+                // Priority 2 & 3: Clean fresh form -> restore draft from localStorage if available (skipped if old input exists)
                 try {
                     const rawDraft = localStorage.getItem(this.storageKey);
                     if (rawDraft) {
@@ -103,9 +100,17 @@ Alpine.data('proposalForm', () => {
 
             // Mobile Virtual Keyboard Detection via Visual Viewport
             if (window.visualViewport) {
-                const initialHeight = window.visualViewport.height;
-                window.visualViewport.addEventListener('resize', () => {
-                    this.isKeyboardVisible = window.visualViewport.height < initialHeight - 120;
+                let baseHeight = window.visualViewport.height;
+                const checkKeyboard = () => {
+                    this.isKeyboardVisible = window.visualViewport.height < baseHeight - 120;
+                };
+
+                window.visualViewport.addEventListener('resize', checkKeyboard);
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => {
+                        baseHeight = window.visualViewport.height;
+                        checkKeyboard();
+                    }, 150);
                 });
             }
         },
@@ -113,11 +118,10 @@ Alpine.data('proposalForm', () => {
         isFormEmpty() {
             const noDoctor = !this.doctorInput || this.doctorInput.trim() === '';
             const noNotes = !this.notes || this.notes.trim() === '';
-            const noItems = !this.items || this.items.length === 0 || (
-                this.items.length === 1 &&
-                (!this.items[0].medicine_name || this.items[0].medicine_name.trim() === '') &&
-                (!this.items[0].principal_name || this.items[0].principal_name.trim() === '') &&
-                (!this.items[0].clinical_justification || this.items[0].clinical_justification.trim() === '')
+            const noItems = !this.items || this.items.length === 0 || this.items.every(
+                (it) => (!it.medicine_name || it.medicine_name.trim() === '') &&
+                        (!it.principal_name || it.principal_name.trim() === '') &&
+                        (!it.clinical_justification || it.clinical_justification.trim() === '')
             );
             return noDoctor && noNotes && noItems;
         },
@@ -264,7 +268,7 @@ Alpine.data('proposalForm', () => {
             const hasDoctor = Boolean(this.doctorInput && this.doctorInput.trim() !== '');
             const hasNotes = Boolean(this.notes && this.notes.trim() !== '');
             const hasItems = Array.isArray(this.items) && this.items.some(
-                (it) => it.medicine_name && it.medicine_name.trim() !== ''
+                (it) => Boolean(it.medicine_name?.trim() || it.principal_name?.trim() || it.clinical_justification?.trim())
             );
             return hasDoctor || hasNotes || hasItems;
         },
