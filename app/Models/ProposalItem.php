@@ -22,7 +22,21 @@ class ProposalItem extends Model
         'medicine_name',
         'principal_name',
         'clinical_justification',
+        'review_status',
+        'review_notes',
+        'reviewed_at',
+        'reviewer_name',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'reviewed_at' => 'datetime',
+        ];
+    }
 
     /**
      * @return BelongsTo<Proposal, $this>

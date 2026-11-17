@@ -20,6 +20,7 @@ class ProposalItemRecapQuery
         'doctor' => 'proposals.doctor_name',
         'medicine' => 'proposal_items.medicine_name',
         'principal' => 'proposal_items.principal_name',
+        'status' => 'proposal_items.review_status',
         'created_at' => 'proposal_items.created_at',
     ];
 
@@ -40,6 +41,10 @@ class ProposalItemRecapQuery
                 'proposal_items.medicine_name',
                 'proposal_items.principal_name',
                 'proposal_items.clinical_justification',
+                'proposal_items.review_status',
+                'proposal_items.review_notes',
+                'proposal_items.reviewed_at',
+                'proposal_items.reviewer_name',
                 'proposal_items.created_at',
                 'proposals.doctor_name',
                 'proposals.proposal_date',
@@ -57,6 +62,10 @@ class ProposalItemRecapQuery
 
         if (! empty($filters['principal'])) {
             $query->where('proposal_items.principal_name', (string) $filters['principal']);
+        }
+
+        if (! empty($filters['review_status'])) {
+            $query->where('proposal_items.review_status', (string) $filters['review_status']);
         }
 
         if (! empty($filters['date_from'])) {

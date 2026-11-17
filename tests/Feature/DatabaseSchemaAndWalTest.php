@@ -63,3 +63,20 @@ it('has indexes on proposals table for doctor_name and composite period_year pro
     expect($indices->some(fn ($name) => str_contains((string) $name, 'doctor_name')))->toBeTrue()
         ->and($indices->some(fn ($name) => str_contains((string) $name, 'period_year')))->toBeTrue();
 });
+
+it('has review columns on proposal_items table with default pending status', function (): void {
+    $proposal = Proposal::create([
+        'doctor_name' => 'dr. Fatimah Sp.A',
+        'proposal_date' => '2026-11-17',
+        'period_year' => 2026,
+    ]);
+
+    $item = $proposal->items()->create([
+        'medicine_name' => 'Amoxicillin Sirup',
+    ]);
+
+    expect($item->fresh()->review_status)->toBe('pending')
+        ->and($item->fresh()->review_notes)->toBeNull()
+        ->and($item->fresh()->reviewed_at)->toBeNull()
+        ->and($item->fresh()->reviewer_name)->toBeNull();
+});

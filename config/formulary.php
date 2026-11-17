@@ -7,6 +7,9 @@ return [
     'doctor_api_timeout' => (int) env('FORMULARY_DOCTOR_API_TIMEOUT', 10),
     'doctor_cache_ttl_hours' => (int) env('FORMULARY_DOCTOR_CACHE_TTL_HOURS', 12),
     'feed_token' => env('FORMULARY_FEED_TOKEN', ''),
+    'review_secret' => env('FORMULARY_REVIEW_SECRET', ''),
+    'sheet_webhook_url' => env('FORMULARY_SHEET_WEBHOOK_URL', ''),
+    'sheet_webhook_secret' => env('FORMULARY_SHEET_WEBHOOK_SECRET', ''),
     'backup_path' => env('FORMULARY_BACKUP_PATH', storage_path('app/backups')),
     'backup_retention_days' => (int) env('FORMULARY_BACKUP_RETENTION_DAYS', 30),
 ];
