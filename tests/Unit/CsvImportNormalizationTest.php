@@ -28,6 +28,15 @@ it('escapes spreadsheet formula injection prefixes without corrupting empty or n
         ->and(SpreadsheetSanitizer::sanitizeCell('Diarvit 100 Mg Tab'))->toBe('Diarvit 100 Mg Tab');
 });
 
+it('escapes spreadsheet formula injection prefixes with leading whitespace and dangerous owasp characters', function (): void {
+    expect(SpreadsheetSanitizer::sanitizeCell('   =SUM(A1:A10)'))->toBe("'   =SUM(A1:A10)")
+        ->and(SpreadsheetSanitizer::sanitizeCell('  +cmd|'))->toBe("'  +cmd|")
+        ->and(SpreadsheetSanitizer::sanitizeCell('|powershell'))->toBe("'|powershell")
+        ->and(SpreadsheetSanitizer::sanitizeCell('%COMSPEC%'))->toBe("'%COMSPEC%")
+        ->and(SpreadsheetSanitizer::sanitizeCell("\t=1+1"))->toBe("'\t=1+1")
+        ->and(SpreadsheetSanitizer::sanitizeCell('Normal Text'))->toBe('Normal Text');
+});
+
 it('imports the hospital formulary csv idempotently including multiline quoted rows and comma decimals', function (): void {
     $path = database_path('seeders/data/formulary_medicines.csv');
 

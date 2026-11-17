@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-class SpreadsheetSanitizer
+final class SpreadsheetSanitizer
 {
     /**
      * @var list<string>
      */
-    private const DANGEROUS_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
+    private const DANGEROUS_PREFIXES = ['=', '+', '-', '@', "\t", "\r", '|', '%'];
 
     /**
      * Escapes formulas to prevent CSV/Spreadsheet Formula Injection.
@@ -20,8 +20,12 @@ class SpreadsheetSanitizer
             return '';
         }
 
-        $firstChar = mb_substr($value, 0, 1);
+        $trimmed = ltrim($value);
+        if ($trimmed === '') {
+            return $value;
+        }
 
+        $firstChar = mb_substr($trimmed, 0, 1);
         if (in_array($firstChar, self::DANGEROUS_PREFIXES, true)) {
             return "'".$value;
         }
