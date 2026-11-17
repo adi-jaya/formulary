@@ -1,7 +1,7 @@
 # Dokumentasi Teknis & Panduan Sistem
 ## Sistem Usulan Obat Formularium RS (RS Aisyiyah Siti Fatimah Tulangan)
 
-Dokumen ini menyajikan panduan arsitektur komprehensif, spesifikasi teknis, mekanisme kerja domain, kamus data, panduan operasional, hingga catatan rilis dan pengujian untuk **Sistem Usulan Obat Formularium RS Aisyiyah Siti Fatimah Tulangan** hingga rilis **v1.2.0**.
+Dokumen ini menyajikan panduan arsitektur komprehensif, spesifikasi teknis, mekanisme kerja domain, kamus data, panduan operasional, hingga catatan rilis dan pengujian untuk **Sistem Usulan Obat Formularium RS Aisyiyah Siti Fatimah Tulangan** hingga rilis **v1.2.1**.
 
 ---
 
@@ -31,6 +31,7 @@ Dokumen ini menyajikan panduan arsitektur komprehensif, spesifikasi teknis, meka
     - [4.8.1 Karakteristik Pembaruan Data & Sinkronisasi (Update Behavior)](#481-karakteristik-pembaruan-data--sinkronisasi-update-behavior)
     - [4.8.2 Safeguard Anti `#REF!` pada Google Sheets Live CSV Feed](#482-safeguard-anti-ref-pada-google-sheets-live-csv-feed)
     - [4.8.3 Real-Time Push ke Google Apps Script Webhook (< 2 Detik)](#483-real-time-push-ke-google-apps-script-webhook--2-detik)
+    - [4.8.4 Observabilitas Webhook & Diagnostik Otomatis (`formulary:test-webhook`)](#484-observabilitas-webhook--diagnostik-otomatis-formularytest-webhook)
 - [5. Ringkasan Penyesuaian di Luar Rencana Awal (*Plan Deviations & Architectural Decisions*)](#5-ringkasan-penyesuaian-di-luar-rencana-awal-plan-deviations--architectural-decisions)
 - [6. Referensi Rute & Endpoint API](#6-referensi-rute--endpoint-api)
 - [7. Panduan Instalasi, Konfigurasi & Operasional](#7-panduan-instalasi-konfigurasi--operasional)
@@ -42,7 +43,7 @@ Dokumen ini menyajikan panduan arsitektur komprehensif, spesifikasi teknis, meka
   - [7.5 Penjadwalan Tugas Otomatis (*Console Schedule*)](#75-penjadwalan-tugas-otomatis-console-schedule)
 - [8. Verifikasi Kualitas & Pengujian Otomatis](#8-verifikasi-kualitas--pengujian-otomatis)
   - [8.1 Menjalankan Pengujian](#81-menjalankan-pengujian)
-  - [8.2 Ringkasan Cakupan Test (81 Tests / 497 Assertions)](#82-ringkasan-cakupan-test-81-tests--497-assertions)
+  - [8.2 Ringkasan Cakupan Test (88 Tests / 510 Assertions)](#82-ringkasan-cakupan-test-88-tests--510-assertions)
 - [9. Catatan Rilis & Riwayat Versi (Changelog)](#9-catatan-rilis--riwayat-versi-changelog)
 
 ---
@@ -376,6 +377,17 @@ Mengatasi kendala jeda cache 1–2 jam formula bawaan `=IMPORTDATA(...)` dengan 
 4. Baris obat seketika muncul di baris paling bawah lembar kerja Google Sheets dalam waktu **< 2 detik**.
 5. Tersedia perintah CLI `php artisan formulary:sync-sheets` untuk rekonsiliasi massal berkala atau inisialisasi sheet baru.
 
+#### 4.8.4 Observabilitas Webhook & Diagnostik Otomatis (`formulary:test-webhook`)
+Untuk menjamin keandalan pengiriman data ke Google Sheets dan mempermudah pemecahan masalah integrasi, sistem menyediakan observabilitas komprehensif:
+1. **Perintah Diagnostik Mandiri (`php artisan formulary:test-webhook`):**
+   - **Tahap 1 (Aksesibilitas Publik):** Mengirimkan GET request untuk memverifikasi apakah endpoint Apps Script dapat diakses publik tanpa login.
+   - **Deteksi Celah Otorisasi Google (302 Redirect):** Jika Web App salah dikonfigurasi dengan *"Who has access"* = *"Only myself"* atau domain organisasi, Google akan mengalihkan request ke `accounts.google.com`. Perintah otomatis mendeteksi hal ini dan memberikan panduan perbaikan konkret.
+   - **Deteksi Penolakan Edge (401 Unauthorized):** Memberi peringatan jika Google Edge Proxy menolak akses.
+   - **Tahap 2 (Verifikasi Shared Secret & Ping-Pong):** Mengirimkan POST payload `{action: 'ping', secret: '...'}`. Webhook yang valid akan mengembalikan `{status: 'success', message: 'Pong'}`. Jika secret salah, sistem mendeteksi kegagalan otentikasi.
+2. **Validasi Respons Payload pada Service & CLI:**
+   - [`GoogleSheetSyncService`](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/app/Services/GoogleSheetSyncService.php) memeriksa apakah balasan JSON mengandung `status: 'error'` (meskipun HTTP status code 200) dan mencatat warning rinci ke `storage/logs/laravel.log`.
+   - [`SyncGoogleSheetCommand`](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/app/Console/Commands/SyncGoogleSheetCommand.php) mendeteksi jika basis data memiliki baris usulan namun tidak ada baris yang berhasil terkirim ke spreadsheet, menampilkan pesan peringatan di terminal dan mengembalikan status gagal (`FAILURE`).
+
 ---
 
 ## 5. Ringkasan Penyesuaian di Luar Rencana Awal (*Plan Deviations & Architectural Decisions*)
@@ -518,14 +530,18 @@ php artisan formulary:sync-sheets --clear
 # Sinkronisasi khusus tahun periode tertentu:
 php artisan formulary:sync-sheets --year=2026 --clear
 
-# 5. Impor/Perbarui Kamus Referensi Obat dari CSV
+# 5. Pengujian Ketersediaan & Validitas Google Sheets Webhook (Diagnostik)
+# Memeriksa URL, otorisasi Google (deteksi login 302/401), dan verifikasi secret ping-pong:
+php artisan formulary:test-webhook
+
+# 6. Impor/Perbarui Kamus Referensi Obat dari CSV
 php artisan formulary:import-csv database/seeders/data/formulary_medicines.csv
 ```
 
 ### 7.5 Penjadwalan Tugas Otomatis (*Console Schedule*)
 Tugas-tugas pemeliharaan rutin telah didaftarkan pada [routes/console.php](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/routes/console.php) dan otomatis berjalan jika cron server aktif:
 - `formulary:backup`: Dijalankan setiap hari pukul 02:00 dini hari (`dailyAt('02:00')`).
-- `formulary:sync-doctors`: Dijalankan setiap hari pukul 03:00 dini hari (`dailyAt('03:00')`).
+- `formulary:sync-doctors`: Dijalankan dua kali sehari pukul 06:00 dan 18:00 WIB (`twiceDaily(6, 18)`).
 
 Konfigurasi crontab server produksi:
 ```cron
@@ -550,7 +566,7 @@ Seluruh logika bisnis, transaksi, keamanan endpoint, formula sanitasi, hingga in
 npm run build
 ```
 
-### 8.2 Ringkasan Cakupan Test (81 Tests / 497 Assertions)
+### 8.2 Ringkasan Cakupan Test (88 Tests / 510 Assertions)
 1. **`CsvImportNormalizationTest` (5 tests):**
    - Normalisasi spasi, strip kosong, dan typo principle pada CSV.
    - Pembersihan awalan badan usaha (PT/CV) dan pemetaan alias Berno.
@@ -602,10 +618,12 @@ npm run build
     - Render badge status telaah dan transparansi catatan klinis publik tanpa login.
     - Render badge mode KFT aktif dan nama penelaah saat sesi terautentikasi.
     - Pemfilteran item rekapitulasi berdasarkan `review_status`.
-11. **`GoogleSheetSyncServiceTest` (5 tests):**
+11. **`GoogleSheetSyncServiceTest` (6 tests):**
     - Pendorongan baris usulan baru dengan 12 kolom kanonikal ke Webhook Google Apps Script.
     - Penanganan kegagalan HTTP dan URL webhook kosong tanpa memicu uncaught exception.
+    - Penanganan respons HTTP 200 berstatus error payload dengan warning log.
     - Pengiriman chunk data dan aksi `clear_sheet` pada sinkronisasi massal `syncAll()`.
+    - Return 0 saat URL webhook belum dikonfigurasi.
     - Pemicu penangguhan `defer()` saat pembuatan proposal di `ProposalController::store()`.
 12. **`ProposalExportReviewCsvTest` (5 tests):**
     - Verifikasi ketat 8 kolom pada CSV default tanpa parameter `include_review` (safeguard anti `#REF!`).
@@ -632,24 +650,42 @@ npm run build
     - Penerapan normalisasi nama principle di database pada mode eksekusi nyata.
     - Penanganan data yang sudah normal secara aman.
     - Normalisasi karakter strip menjadi `null`.
-17. **`SyncGoogleSheetCommandTest` (5 tests):**
+17. **`SyncGoogleSheetCommandTest` (6 tests):**
     - Pembatalan sinkronisasi massal saat konfirmasi interaktif ditolak tanpa opsi `--clear`.
     - Kelanjutan sinkronisasi saat konfirmasi diterima.
     - Eksekusi sinkronisasi massal dengan opsi `--clear`.
     - Pemfilteran data yang dikirim berdasarkan opsi `--year`.
     - Pesan peringatan jika `FORMULARY_SHEET_WEBHOOK_URL` belum dikonfigurasi.
-18. **`DatabaseSchemaAndWalTest` (4 tests):**
+    - Status gagal dan peringatan jika webhook mengembalikan error saat sinkronisasi massal.
+18. **`TestGoogleSheetWebhookCommandTest` (5 tests):**
+    - Penolakan jika `FORMULARY_SHEET_WEBHOOK_URL` kosong.
+    - Deteksi pengalihan Google Login (HTTP 302 Redirect) dan panduan koreksi izin "Who has access" = "Anyone".
+    - Deteksi HTTP 401 Unauthorized dari Google Edge Server.
+    - Deteksi ketidakcocokan secret pada respons webhook error.
+    - Verifikasi sukses ketersediaan webhook dan respon aksi ping-pong.
+19. **`DatabaseSchemaAndWalTest` (4 tests):**
     - Konfigurasi default koneksi SQLite (WAL, busy_timeout 5000ms, foreign keys).
     - Integritas master-detail dengan cascade on delete.
     - Keberadaan index `doctor_name` dan composite index `['period_year', 'proposal_date']`.
     - Keberadaan kolom telaah KFT dengan status default `pending`.
-19. **`TunnelViteAssetResolutionTest` (2 tests):**
+20. **`TunnelViteAssetResolutionTest` (2 tests):**
     - Resolusi aset terkompilasi statis saat diakses via Cloudflare Tunnel untuk mencegah isu CORS.
     - Pemeliharaan Vite hot file saat diakses dari domain lokal.
+21. **`ExampleTest` (2 tests: 1 Feature, 1 Unit):**
+    - Smoke test dasar respons aplikasi dan unit assertion.
 
 ---
 
 ## 9. Catatan Rilis & Riwayat Versi (Changelog)
+
+### `v1.2.1` (2026-11-17) — Observabilitas Webhook Google Sheets & Tooling Diagnostik
+- **Added:** Perintah Artisan `php artisan formulary:test-webhook` untuk menguji ketersediaan, hak akses Google Web App (deteksi otomatis 302 redirect Google Login dan 401 edge auth), serta pengujian shared secret ping-pong.
+- **Added:** Endpoint `doGet()` pada template script `google-apps-script-webhook.js` untuk health-check browser/curl dan aksi ping-pong `{action: 'ping'}`.
+- **Added:** Peningkatan styling header pada template Apps Script (`#065F46` hijau zamrud, font putih tebal, auto-resize 12 kolom).
+- **Added:** Validasi status payload pada `GoogleSheetSyncService` (mendeteksi respons `{status: 'error'}` meskipun HTTP 200) disertai logging warning.
+- **Added:** Deteksi kegagalan pengiriman pada `php artisan formulary:sync-sheets`: menampilkan peringatan dan mengembalikan exit code `FAILURE` jika data tersedia di basis data tetapi tidak ada baris yang berhasil dikirim.
+- **Added:** Suite pengujian otomatis baru `TestGoogleSheetWebhookCommandTest` (5 feature tests) serta perluasan pengujian pada `GoogleSheetSyncServiceTest` dan `SyncGoogleSheetCommandTest` (total pengujian naik menjadi 88 tests / 510 assertions).
+- **Docs:** Penyelarasan dokumentasi komprehensif sistem (`DOKUMENTASI_SISTEM.md`, `README.md`, `ROADMAP.md`, `AGENTS.md`) terhadap seluruh perubahan terkini.
 
 ### `v1.2.0` (2026-11-17) — Modul Telaah KFT Farmasi & Real-Time Google Sheets Sync
 - **Added:** Migrasi aditif tabel `proposal_items` untuk kolom `review_status`, `review_notes`, `reviewed_at`, dan `reviewer_name`.

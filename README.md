@@ -1,32 +1,51 @@
 # Sistem Usulan Obat Formularium RS
-### RS Aisyiyah Siti Fatimah Tulangan • Farmasi
+### RS Aisyiyah Siti Fatimah Tulangan • Komite Farmasi dan Terapi (KFT)
 
-Aplikasi web mandiri (*standalone*) berbasis **Laravel 12**, **Blade**, **Alpine.js**, dan **Tailwind CSS v4** dengan database **SQLite WAL Mode** untuk pengumpulan usulan obat tahunan dari para DPJP (Dokter Penanggung Jawab Pelayanan) tanpa hambatan login (*zero-friction*), dilengkapi dashboard rekapitulasi real-time, integrasi Live Spreadsheet Google Sheets/Excel, dan ekspor file `.xlsx` siap cetak.
+Aplikasi web mandiri (*standalone*) berbasis **Laravel 12**, **Blade**, **Alpine.js**, dan **Tailwind CSS v4** dengan basis data **SQLite WAL Mode** untuk pengumpulan dan penelaahan usulan obat tahunan dari para DPJP (Dokter Penanggung Jawab Pelayanan) tanpa hambatan login (*zero-friction*), dilengkapi dashboard rekapitulasi real-time, analitik konsensus sidang KFT, modul penelaahan farmasi berbasis passcode, integrasi real-time Google Sheets Webhook (< 2 detik) via Laravel 12 `defer()`, serta ekspor spreadsheet berformat siap cetak.
 
 ---
 
 ## Fitur Utama
 
 - **Zero-Friction Doctor Proposal Form (`/`):**
-  - Dokter dapat langsung mengajukan obat tanpa perlu membuat akun atau login PIN.
-  - *Searchable Combobox* Dokter: Terhubung langsung ke REST API `portalsifast` dengan sistem fallback bertingkat (Cache 12 Jam $\rightarrow$ API $\rightarrow$ Snapshot JSON Lokal $\rightarrow$ Pengetikan Manual).
-  - *Dynamic Medicine Repeater:* Mengusulkan 1 hingga 50 obat dalam satu pengiriman formulir.
-  - *Self-Learning Autocomplete:* Rekomendasi nama obat & pabrikan menggabungkan 206 obat kamus referensi RS dengan riwayat usulan terbaru secara *case-insensitive*.
-  - *Principle Auto-Fill:* Memilih obat dari saran otomatis mengisi nama principle/pabrik pasangannya tanpa mengunci pilihan dokter.
-  - *Idempotency Lock & Atomic Transaction:* Transaksi master-detail dibungkus `DB::transaction()` dan dilindungi hash SHA-256 di cache selama 15 detik untuk mencegah duplikasi akibat klik ganda.
-  - *Safe Form Recovery:* Validasi gagal mengembalikan seluruh baris obat tanpa terpotong berkat isolasi data JSON script carrier.
+  - **Bebas Akses (No Auth):** Dokter dapat langsung mengajukan obat tanpa perlu membuat akun atau login PIN.
+  - **Searchable Combobox Dokter:** Terhubung langsung ke REST API `portalsifast` dengan sistem fallback bertingkat (Cache 12 Jam $\rightarrow$ API $\rightarrow$ Snapshot JSON Lokal $\rightarrow$ Pengetikan Dokter Manual).
+  - **Dynamic Medicine Repeater:** Mengusulkan 1 hingga 50 obat dalam satu kali pengiriman formulir secara atomik.
+  - **Self-Learning Autocomplete:** Rekomendasi nama obat & pabrikan menggabungkan kamus referensi RS (~206 obat) dengan riwayat usulan terbaru secara *case-insensitive*.
+  - **Principle Auto-Fill:** Memilih obat dari saran otomatis mengisi nama principle/pabrikan pasangannya tanpa mengunci kebebasan dokter.
+  - **Pintasan Cepat & UX Mobile:** Auto-save draf formulir lokal (`localStorage`), pemulihan otomatis, pintasan keyboard `Ctrl+Enter` / `Cmd+Enter`, auto-focus baris baru, penghitung kuota 2.000 karakter, dan floating action bar ramah smartphone (`env(safe-area-inset-bottom)` & deteksi virtual keyboard).
+  - **Idempotency Lock & Atomic Transaction:** Transaksi master-detail dibungkus `DB::transaction()` dan dilindungi hash SHA-256 di cache selama 15 detik untuk mencegah duplikasi akibat double-click atau retry jaringan lambat.
+  - **Safe Form Recovery:** Validasi gagal mengembalikan seluruh baris obat tanpa terpotong berkat isolasi data JSON script carrier.
 
 - **Dashboard Rekapitulasi Real-Time (`/recap`):**
-  - Metrik statistik instan: Total Obat Diusulkan, Dokter Berpartisipasi, dan Total Pengiriman Formulir.
-  - Filter multi-dimensi: Tahun Periode (chip cepat), Dokter, Principle (menggunakan komponen kustom `<x-custom-select>` dengan navigasi keyboard), Rentang Tanggal, dan Pencarian Bebas.
-  - Paginasi 25 baris responsif dengan mempertahankan query string.
+  - **Segmented Dual-Tab Navigation:** Navigasi cepat antara Tab Daftar Usulan (`tab=items`) dan Tab Konsensus Sidang KFT (`tab=consensus`) dengan preservasi filter aktif.
+  - **Interactive Multi-Column Ordering:** Pengurutan kolom tabel interaktif (Tanggal, Periode, Dokter, Obat, Principle, Waktu Input) secara ASC/DESC via komponen `<x-table-sort-header>` dengan strict whitelist mapping dan deterministic tie-breaker.
+  - **Filter Multi-Dimensi:** Tahun Periode (chip cepat), Status Telaah, Dokter, Principle (menggunakan komponen kustom `<x-custom-select>` dengan navigasi keyboard), Rentang Tanggal, dan Pencarian Bebas.
+  - **Paginasi Responsif:** Paginasi 25 baris responsif dengan mempertahankan parameter filter dan sorting.
 
-- **Integrasi Live Spreadsheet & Ekspor:**
-  - **Google Sheets Live Sync:** Modal koneksi dengan tombol salin 1-klik rumus `=IMPORTDATA("https://domain-rs/exports/proposals.csv?token=...")`. Dilengkapi panduan *force refresh* instan (menghapus sel A1 lalu Undo `Ctrl+Z`) untuk melewati jeda cache bawaan Google (1–2 jam).
-  - **Microsoft Excel Power Query:** Koneksi live via menu *Data $\rightarrow$ Dari Web (From Web)* dengan dukungan tombol *Segarkan Semua (Refresh All)* atau interval auto-refresh berkala (misal 5 menit).
-  - **Proteksi Token Statis:** Endpoint CSV feed diamankan dengan validasi token konstan waktu (`hash_equals`).
-  - **Unduh Excel Berformat (`.xlsx`):** Dibuat menggunakan engine ringan `openspout/openspout` dengan streaming memori rendah (< 10 MB), header warna hijau zamrud RS (`#065F46`), teks tebal putih, dan border terukur rapi.
-  - **Anti-Formula Injection:** Sanitasi otomatis karakter berisiko (`=`, `+`, `-`, `@`) untuk mencegah eksekusi formula berbahaya di spreadsheet.
+- **Analitik Konsensus Usulan Obat Sidang KFT (`tab=consensus`):**
+  - **Two-Stage Hybrid Aggregation:** Agregasi obat berdasarkan jumlah dukungan DPJP unik (`ProposalConsensusQuery`), menampilkan peringkat usulan terbanyak.
+  - **Kartu Metrik KPI Konsensus:** Ringkasan instan Total Obat Diusulkan, Usulan Konsensus (≥ 2 Dokter), dan Rekor Dukungan Tertinggi.
+  - **Accordion Komparasi DPJP:** Penelusuran rincian perbandingan klinis antar-dokter, spesialisasi/klinik, variasi principle, serta alasan justifikasi medis dalam kartu interaktif.
+  - **Quick Filter Chip:** Opsi 1-klik untuk memfilter *"Semua Usulan"* vs *"Hanya Usulan Konsensus (≥ 2 Dokter)"*.
+
+- **Modul Telaah KFT Farmasi:**
+  - **Otorisasi Sesi Berbasis Passcode:** Akses telaah diamankan dengan shared passcode (`FORMULARY_REVIEW_SECRET`) dan proteksi rate limiter `throttle:10,1` tanpa beban manajemen akun pengguna yang rumit.
+  - **Mutasi Status & Catatan Telaah:** Apoteker dapat menetapkan status telaah (*Pending*, *Disetujui*, *Ditolak*, atau *Substitusi Formularium*) beserta catatan pertimbangan KFT melalui modal interaktif inline.
+  - **Transparansi Klinis Terbuka:** Seluruh dokter dan staf dapat melihat badge status telaah dan catatan pertimbangan KFT secara transparan di dashboard tanpa perlu login.
+
+- **Integrasi Spreadsheet & Real-Time Webhook:**
+  - **Real-Time Push ke Google Sheets (< 2 Detik):** Memanfaatkan Laravel 12 `defer()` pada Controller untuk memicu HTTP POST 12 kolom kanonikal ke Webhook Google Apps Script secara instan pasca-transaksi tanpa membebani waktu tunggu dokter.
+  - **Tooling Diagnostik Webhook (`formulary:test-webhook`):** Pengujian otomatis ketersediaan endpoint, deteksi isu hak akses Google Web App (302 redirect login / 401 unauthorized), serta pengujian respon ping-pong shared secret.
+  - **Bulk Reconciliation CLI (`formulary:sync-sheets`):** Perintah sinkronisasi massal seluruh data historis ke Google Sheets dengan opsi pembersihan lembar kerja (`--clear`) dan filter tahun (`--year`).
+  - **Live CSV Feed Ber-Token (Safeguard 8-Kolom vs 12-Kolom Opt-in):** URL CSV feed publik diamankan dengan `hash_equals()`. Kontrak default 8 kolom lama tetap dipertahankan untuk mencegah error `#REF!` formula spill di spreadsheet yang sudah berjalan, sementara 12 kolom kanonikal dibuka via parameter opt-in `&include_review=1`.
+  - **Unduh Excel Berformat (`.xlsx`):** Dibuat menggunakan engine ringan `openspout/openspout` dengan streaming memori rendah (< 10 MB), header hijau zamrud RS (`#065F46`), teks tebal putih, dan border terukur rapi.
+  - **Anti-Formula Injection OWASP:** Sanitasi otomatis karakter formula berbahaya (`=`, `+`, `-`, `@`, `|`, `%`) dengan pemotongan leading whitespace.
+
+- **Tooling Operasional & Otomatisasi IT:**
+  - **Hot-Backup Atomic SQLite:** Perintah `formulary:backup` menggunakan query native SQLite `VACUUM INTO` untuk pencadangan konsisten tanpa risiko file lock WAL, lengkap dengan rotasi otomatis 30 hari.
+  - **Sinkronisasi Direktori Dokter Otomatis:** Perintah `formulary:sync-doctors` untuk memperbarui cache dan snapshot direktori dokter Portal Sifast secara terjadwal (pukul 06:00 & 18:00 WIB).
+  - **Normalisasi Principle Historis:** Perintah `formulary:normalize-principals` untuk membersihkan awalan badan usaha (PT/CV) dan pemetaan alias pabrikan secara aman dengan dukungan mode simulasi `--dry-run`.
 
 ---
 
@@ -34,23 +53,25 @@ Aplikasi web mandiri (*standalone*) berbasis **Laravel 12**, **Blade**, **Alpine
 
 | Lapisan | Teknologi | Keterangan |
 | :--- | :--- | :--- |
-| **Backend** | PHP `^8.3`, Laravel `^12.0` | Monolitik ringan, routing modern `bootstrap/app.php` |
-| **Database** | SQLite 3 (`WAL` Mode) | `busy_timeout = 5000`, `synchronous = NORMAL`, `foreign_keys = true` |
-| **Frontend** | Blade + Alpine.js `^3.14` | Alpine dibundel lokal melalui Vite (tanpa CDN eksternal) |
-| **Styling** | Tailwind CSS `^4.0` | Menggunakan `@tailwindcss/vite` dengan palet hijau zamrud RS |
-| **Excel Writer** | `openspout/openspout` `^4.32` | Streaming memory-efficient Excel XLSX export |
-| **Testing** | Pest PHP `^3.0` | 25 Feature & Unit Tests (132 assertions, 100% pass) |
+| **Backend** | PHP `^8.3`, Laravel `^12.0` | Monolitik fungsional ringan, routing modern `bootstrap/app.php`, deferred tasks |
+| **Database** | SQLite 3 (`WAL` Mode) | `busy_timeout = 5000`, `synchronous = NORMAL`, `foreign_keys = true`, hot-backup `VACUUM INTO` |
+| **Frontend** | Blade + Alpine.js `^3.17` | Dibundel lokal via Vite (tanpa CDN eksternal), arsitektur modular komponen |
+| **Styling** | Tailwind CSS `^4.0` | Terintegrasi via `@tailwindcss/vite` dengan palet hijau zamrud RS (`#065F46`) |
+| **Spreadsheet**| `openspout/openspout` `^4.32` | Streaming memory-efficient Excel XLSX export (< 10 MB) |
+| **Testing** | Pest PHP `^3.7` | **88 Feature & Unit Tests (510 assertions, 100% pass)** |
+| **Code Style** | Laravel Pint `^1.24` | Strict types `declare(strict_types=1);` pada seluruh berkas PHP |
 
-Dokumentasi arsitektur dan teknis mendalam tersedia di [docs/DOKUMENTASI_SISTEM.md](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/docs/DOKUMENTASI_SISTEM.md).
+Dokumentasi arsitektur dan teknis mendalam tersedia di [docs/DOKUMENTASI_SISTEM.md](docs/DOKUMENTASI_SISTEM.md).
 
 ---
 
 ## Panduan Cepat Memulai (*Quick Start*)
 
 ### 1. Kebutuhan Sistem
-- PHP `>= 8.3` (ekstensi: `pdo_sqlite`, `curl`, `mbstring`, `zip`, `xml`)
+- PHP `>= 8.3` (ekstensi: `pdo_sqlite`, `curl`, `mbstring`, `zip`, `xml`, `openssl`, `tokenizer`)
 - Composer `>= 2.7`
 - Node.js `>= 20.0` & NPM
+- SQLite 3
 
 ### 2. Instalasi & Setup Lingkungan
 ```bash
@@ -65,48 +86,51 @@ npm install
 cp .env.example .env
 php artisan key:generate
 
-# Buat database SQLite dan jalankan migrasi + seeder awal
+# Buat database SQLite dan jalankan migrasi
 touch database/database.sqlite
-php artisan migrate --seed
+php artisan migrate
 
-# Kompilasi aset Vite
+# Isi database dengan kamus obat & simulasi dokter API
+php artisan db:seed --class=FormulariumDataSeeder
+
+# Kompilasi aset Vite untuk produksi
 npm run build
 ```
 
 ### 3. Konfigurasi Penting `.env`
-Pastikan variabel berikut terisi di file `.env`:
+Pastikan variabel berikut terisi di berkas `.env`:
 ```dotenv
+APP_NAME="Formularium RS"
 APP_TIMEZONE=Asia/Jakarta
 APP_LOCALE=id
 
 DB_CONNECTION=sqlite
 DB_FOREIGN_KEYS=true
 
+# API Direktori Dokter Portal Sifast RS
 FORMULARY_DOCTOR_API_URL="https://portalsifast.rsaisyiyahsitifatimah.com/api/dokter"
 FORMULARY_DOCTOR_API_TIMEOUT=10
 FORMULARY_DOCTOR_CACHE_TTL_HOURS=12
 
 # Token 32 karakter untuk mengamankan Live CSV Feed Spreadsheet
 FORMULARY_FEED_TOKEN="ganti_dengan_token_rahasia_32_karakter"
+
+# Konfigurasi Backup Otomatis SQLite
+FORMULARY_BACKUP_PATH="./storage/app/backups"
+FORMULARY_BACKUP_RETENTION_DAYS=30
+
+# Passcode Sesi Telaah KFT Farmasi
+FORMULARY_REVIEW_SECRET="passcode_kft_rahasia_anda"
+
+# Integrasi Real-Time Google Apps Script Webhook
+FORMULARY_SHEET_WEBHOOK_URL="https://script.google.com/macros/s/.../exec"
+FORMULARY_SHEET_WEBHOOK_SECRET="webhook_secret_token_anda"
 ```
 
 > **Cara Mengenerate `FORMULARY_FEED_TOKEN`:**
-> Token ini wajib berupa string acak minimal 32 karakter (CSPRNG) untuk mencegah akses tidak sah ke endpoint Live CSV. Anda dapat mengeneratenya melalui:
->
-> - **PHP CLI (Rekomendasi):**
->   ```bash
->   php -r "echo bin2hex(random_bytes(16)) . PHP_EOL;"
->   ```
-> - **OpenSSL (macOS / Linux):**
->   ```bash
->   openssl rand -hex 16
->   ```
-> - **Generate & Langsung Update file `.env` (macOS / Linux):**
->   ```bash
->   NEW_TOKEN=$(php -r "echo bin2hex(random_bytes(16));")
->   sed -i '' "s/^FORMULARY_FEED_TOKEN=.*/FORMULARY_FEED_TOKEN=${NEW_TOKEN}/" .env
->   php artisan config:clear
->   ```
+> ```bash
+> php -r "echo bin2hex(random_bytes(16)) . PHP_EOL;"
+> ```
 
 ### 4. Menjalankan Server Pengembangan Lokal
 ```bash
@@ -114,30 +138,45 @@ composer run dev
 ```
 Akses di browser:
 - Formulir Usulan Dokter: `http://localhost:8000/`
-- Rekapitulasi & Live Spreadsheet: `http://localhost:8000/recap`
+- Rekapitulasi & Telaah KFT: `http://localhost:8000/recap`
 
 ### 5. Membagikan Akses Publik via Cloudflare Tunnel
-Untuk keperluan demo, pengujian oleh dokter di smartphone, atau akses dari jaringan luar:
-- **Windows (Laravel Herd)**: Jalankan `.\tunnel.bat`
-- **macOS (MacPorts)**: Jalankan `./tunnel.sh`
+Untuk pengujian mobile oleh para DPJP:
+- **Windows (Herd)**: Jalankan `.\tunnel.bat`
+- **macOS (Terminal)**: Jalankan `./tunnel.sh`
 
-Panduan lengkap mengenai arsitektur isolasi aset Vite dan konfigurasi tunnel dapat dibaca di [docs/PANDUAN_TUNNEL.md](docs/PANDUAN_TUNNEL.md).
+Panduan lengkap konfigurasi tunnel tersedia di [docs/PANDUAN_TUNNEL.md](docs/PANDUAN_TUNNEL.md).
 
 ---
 
 ## Perintah Artisan yang Tersedia
 
+Aplikasi dilengkapi perintah CLI khusus untuk pemeliharaan dan pengoperasian sistem:
+
 ```bash
-# Mengimpor atau memperbarui kamus CSV referensi obat & pabrikan
+# 1. Menguji ketersediaan, hak akses Google Web App, dan secret webhook
+php artisan formulary:test-webhook
+
+# 2. Sinkronisasi & rekonsiliasi massal ke Google Sheets Webhook
+php artisan formulary:sync-sheets --clear
+
+# 3. Hot-Backup atomic basis data SQLite (Aman WAL, rotasi 30 hari)
+php artisan formulary:backup
+
+# 4. Sinkronisasi paksa direktori dokter dari REST API Portal Sifast
+php artisan formulary:sync-doctors
+
+# 5. Normalisasi nama principle historis (pembersihan PT/CV dan alias)
+php artisan formulary:normalize-principals --dry-run
+php artisan formulary:normalize-principals
+
+# 6. Mengimpor atau memperbarui kamus CSV referensi obat & pabrikan
 php artisan formulary:import-csv database/seeders/data/formulary_medicines.csv
 
-# Mengisi database dengan data simulasi realistis (gabungan dokter API & data obat)
-php artisan db:seed --class=FormulariumDataSeeder
-
-# Menjalankan seluruh pengujian otomatis
+# 7. Menjalankan seluruh pengujian otomatis (88 tests, 510 assertions)
 ./vendor/bin/pest
 
-# Memeriksa dan merapikan standar format kode PHP
+# 8. Memeriksa kepatuhan formatting kode PHP
 ./vendor/bin/pint --test
 ```
 
@@ -149,56 +188,66 @@ php artisan db:seed --class=FormulariumDataSeeder
 FormulariumRS/
 ├── app/
 │   ├── Console/Commands/
-│   │   └── ImportFormularyCsvCommand.php     # CLI importer CSV kamus obat
+│   │   ├── DatabaseBackupCommand.php         # formulary:backup (SQLite VACUUM INTO)
+│   │   ├── ImportFormularyCsvCommand.php     # formulary:import-csv (kamus referensi obat)
+│   │   ├── NormalizePrincipalsCommand.php    # formulary:normalize-principals (PT/CV strip)
+│   │   ├── SyncDoctorsCommand.php            # formulary:sync-doctors (API Portal Sifast)
+│   │   ├── SyncGoogleSheetCommand.php        # formulary:sync-sheets (bulk webhook push)
+│   │   └── TestGoogleSheetWebhookCommand.php # formulary:test-webhook (diagnostik & ping)
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── ProposalController.php        # Form usulan & penyimpanan atomik
-│   │   │   ├── ProposalRecapController.php   # Halaman rekapitulasi & metrik
-│   │   │   ├── ProposalExportController.php  # Stream CSV ber-token & XLSX download
-│   │   │   └── SuggestionController.php      # JSON suggestions dokter, obat, principle
+│   │   │   ├── ProposalController.php        # Form usulan, store atomik & defer push
+│   │   │   ├── ProposalRecapController.php   # Dashboard rekapitulasi & konsensus
+│   │   │   ├── ProposalReviewController.php  # Autentikasi passcode & telaah KFT
+│   │   │   ├── ProposalExportController.php  # Live CSV feed 8/12 col & OpenSpout XLSX
+│   │   │   └── SuggestionController.php      # Autocomplete JSON dokter, obat, principle
 │   │   └── Requests/
 │   │       └── StoreProposalRequest.php      # Validasi & normalisasi teks
 │   ├── Models/
-│   │   ├── Proposal.php                      # Model master sesi usulan
-│   │   ├── ProposalItem.php                  # Model rincian obat yang diusulkan
+│   │   ├── Proposal.php                      # Model master sesi usulan DPJP
+│   │   ├── ProposalItem.php                  # Model rincian obat & kolom telaah KFT
 │   │   └── ReferenceMedicine.php             # Kamus obat referensi RS
 │   ├── Queries/
-│   │   └── ProposalItemRecapQuery.php        # Query builder filter rekapitulasi
+│   │   ├── ProposalItemRecapQuery.php        # Filter rekapitulasi & whitelist sorter
+│   │   └── ProposalConsensusQuery.php        # Agregasi hibrida 2-tahap konsensus KFT
 │   ├── Services/
-│   │   ├── DoctorDirectoryService.php        # Integrasi tangguh API, Cache & Snapshot dokter
+│   │   ├── DoctorDirectoryService.php        # Multi-tier direktori dokter Portal Sifast
 │   │   ├── AutocompleteService.php           # Logika hibrida saran obat & principle
+│   │   ├── GoogleSheetSyncService.php        # Real-time webhook push & bulk sync
 │   │   ├── FormularyCsvImporter.php          # Parser CSV RFC-4180 multi-baris
 │   │   └── ProposalExportService.php         # Penulis spreadsheet XLSX OpenSpout
 │   └── Support/
-│       ├── TextNormalizer.php                # Normalisasi spasi, alias principle & null strip
-│       └── SpreadsheetSanitizer.php          # Sanitasi CSV formula injection
+│       ├── TextNormalizer.php                # Normalisasi spasi, strip PT/CV & alias
+│       └── SpreadsheetSanitizer.php          # Sanitasi CSV/XLSX formula injection OWASP
 ├── config/
 │   ├── database.php                          # Konfigurasi SQLite WAL & timeout 5000
-│   └── formulary.php                         # Pengaturan API dokter, cache TTL & feed token
+│   └── formulary.php                         # Pengaturan API dokter, backup, KFT & sheet
 ├── database/
 │   ├── migrations/                           # Migrasi proposals, items, & reference_medicines
-│   └── seeders/
-│       ├── DatabaseSeeder.php                # Seeder utama
-│       ├── ReferenceMedicineSeeder.php       # Seeder kamus 206 obat
-│       └── FormulariumDataSeeder.php         # Seeder integrasi dokter API & riwayat usulan
+│   └── seeders/                              # Seeder kamus obat dan data simulasi
 ├── docs/
-│   ├── DOKUMENTASI_SISTEM.md                 # Dokumentasi teknis & arsitektur lengkap
-│   └── superpowers/                          # Spec dan implementation plan
+│   ├── DOKUMENTASI_SISTEM.md                 # Dokumentasi teknis & arsitektur komprehensif
+│   ├── PANDUAN_TUNNEL.md                     # Panduan konfigurasi Cloudflare Tunnel
+│   └── superpowers/                          # Arsip spesifikasi arsitektur & rencana kerja
 ├── resources/
-│   ├── css/app.css                           # Tema Tailwind CSS v4 palet hijau zamrud RS
+│   ├── css/app.css                           # Styling Tailwind CSS v4 palet hijau zamrud RS
 │   ├── js/app.js                             # Alpine.js debounced autocomplete & repeater
+│   ├── scripts/
+│   │   └── google-apps-script-webhook.js     # Template resmi Webhook Google Apps Script
 │   └── views/
-│       ├── components/                       # Layout shell & Custom Select Blade components
+│       ├── components/                       # Layout shell & Blade components (<x-custom-select>, <x-table-sort-header>)
 │       └── proposals/
-│           ├── create.blade.php              # View formulir usulan obat
-│           └── index.blade.php               # View rekapitulasi & modal spreadsheet
+│           ├── create.blade.php              # View formulir usulan obat dokter
+│           ├── index.blade.php               # View dashboard rekapitulasi & modal telaah
+│           └── partials/
+│               └── consensus-tab.blade.php   # Partial tab analitik konsensus sidang KFT
 └── tests/
-    ├── Feature/                              # Pengujian integrasi submission, export, filter
+    ├── Feature/                              # Pengujian integrasi submission, export, filter, kft, sheet
     └── Unit/                                 # Pengujian normalisasi teks & parser CSV
 ```
 
 ---
 
 ## Lisensi & Kepemilikan
-Aplikasi ini dikembangkan khusus untuk **RS Aisyiyah Siti Fatimah Tulangan** di bawah pengelolaan Farmasi.
+Aplikasi ini dikembangkan khusus untuk **RS Aisyiyah Siti Fatimah Tulangan** di bawah pengelolaan Komite Farmasi dan Terapi (KFT) & Instalasi Farmasi.  
 Hak Cipta &copy; 2026 RS Aisyiyah Siti Fatimah Tulangan. Seluruh hak cipta dilindungi.

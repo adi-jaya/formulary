@@ -188,7 +188,7 @@ npm run dev
 
 ### 4.4 Pengujian (Testing) & Standarisasi Kode
 ```bash
-# Menjalankan seluruh suite Pest PHP (28 tests, 159 assertions)
+# Menjalankan seluruh suite Pest PHP (88 tests, 510 assertions)
 ./vendor/bin/pest
 
 # Menjalankan test via artisan/composer

@@ -1,7 +1,7 @@
 # Rangkuman Komprehensif: Arsitektur & Roadmap Pembaruan FormulariumRS (`v1.0.x` — `v1.x.0`)
 
 **Sistem:** [FormulariumRS](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS) — Sistem Usulan Obat Formularium Rumah Sakit Aisyiyah Siti Fatimah Tulangan  
-**Baseline Operasional:** Rilis Stabil `v1.0.0` (28 Pest Tests Passing, 159 Assertions, Git Working Tree Bersih)  
+**Baseline Operasional:** Rilis Stabil `v1.2.1` (88 Pest Tests Passing, 510 Assertions, Git Working Tree Bersih)  
 **Dokumen Rujukan Utama:** [AGENTS.md](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/AGENTS.md) dan [docs/DOKUMENTASI_SISTEM.md](file:///Users/adijaya/MyFiles/Projects/RSAisyiahSitiFatimahTulangan/FormulariumRS/docs/DOKUMENTASI_SISTEM.md)
 
 ---
@@ -101,13 +101,13 @@ Berdasarkan audit langsung pada kode sumber, telah diidentifikasi beberapa poin 
 ## 4. Matriks Rilis & Roadmap Proyek
 
 ```text
-  v1.0.1 (Quick Polish)      v1.0.2 (Rekap UX & Data)   v1.0.3 (Ops/DX)            v1.1.0 (Value Features)     v1.2.0 (Workflow & Sync)
-┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐
-│ • Tab Guard           │  │ • Table Column Sort   │  │ • Hot-Backup SQLite   │  │ • Tab Konsensus Obat  │  │ • Review KFT Farmasi  │
-│ • Local Draft Storage │  │ • Proposals DB Index  │  │ • Sync Dokter CLI     │  │ • Matriks Multi-DPJP  │  │ • Real-time GS Push   │
-│ • Keyboard Submit     │  │ • OWASP Sanitizer     │  │ • Retention 30 Days   │  │ • Filter Multivariat  │  │ • Apps Script Webhook │
-│ • Counter Karakter    │  │ • Stripping PT/CV     │  │                       │  │ • Accordion Rincian   │  │ • Laravel 12 defer()  │
-└───────────────────────┘  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘
+  v1.0.1 (Quick Polish)      v1.0.2 (Rekap UX & Data)   v1.0.3 (Ops/DX)            v1.1.0 (Value Features)     v1.2.0 (Workflow & Sync)    v1.2.1 (Sync Observability)
+┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐
+│ • Tab Guard           │  │ • Table Column Sort   │  │ • Hot-Backup SQLite   │  │ • Tab Konsensus Obat  │  │ • Review KFT Farmasi  │  │ • Test-Webhook CLI    │
+│ • Local Draft Storage │  │ • Proposals DB Index  │  │ • Sync Dokter CLI     │  │ • Matriks Multi-DPJP  │  │ • Real-time GS Push   │  │ • Detect 302/401 Auth │
+│ • Keyboard Submit     │  │ • OWASP Sanitizer     │  │ • Retention 30 Days   │  │ • Filter Multivariat  │  │ • Apps Script Webhook │  │ • Ping-Pong Secret    │
+│ • Counter Karakter    │  │ • Stripping PT/CV     │  │                       │  │ • Accordion Rincian   │  │ • Laravel 12 defer()  │  │ • Failure Reporting   │
+└───────────────────────┘  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘
 ```
 
 | Tag Rilis | Fokus Utama | Komponen Fitur | Dampak Utama bagi Rumah Sakit |
@@ -117,6 +117,7 @@ Berdasarkan audit langsung pada kode sumber, telah diidentifikasi beberapa poin 
 | **`v1.0.3`** | Tooling IT & Backup | Backup atomic SQLite `VACUUM INTO`, command CLI sinkronisasi dokter API | Pemeliharaan berkala basis data aman tanpa lock file WAL & mudah di-cron. |
 | **`v1.1.0`** | Nilai Tambah Sidang KFT | Tab konsensus usulan obat ganda, peringkat prioritas multivariat dokter DPJP | Mempercepat sidang formularium tahunan KFT dengan visualisasi obat yang paling banyak didukung. |
 | **`v1.2.0`** | Alur Kerja KFT & Realtime Sync | Pencatatan status telaah internal & sinkronisasi Google Sheets realtime (< 2s) via Apps Script + `defer()` | Melacak keputusan hasil sidang KFT dan pembaruan Google Sheets instan tanpa jeda cache. |
+| **`v1.2.1`** | Observabilitas & Diagnostik Webhook | Perintah CLI `formulary:test-webhook`, deteksi otomatis 302 login redirect Google & 401 edge auth, ping-pong test, pelaporan failure | Mencegah silent failure sinkronisasi Google Sheets dan mempermudah verifikasi konfigurasi Apps Script. |
 
 ---
 

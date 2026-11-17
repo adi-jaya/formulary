@@ -1,5 +1,5 @@
 /**
- * Webhook Google Apps Script untuk Sistem FormulariumRS (v1.2.0)
+ * Webhook Google Apps Script untuk Sistem FormulariumRS (v1.2.1)
  * Rumah Sakit Aisyiyah Siti Fatimah Tulangan
  *
  * Panduan Pemasangan:
