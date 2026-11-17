@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalExportController;
 use App\Http\Controllers\ProposalRecapController;
+use App\Http\Controllers\ProposalReviewController;
 use App\Http\Controllers\SuggestionController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,10 @@ Route::get('/', [ProposalController::class, 'create'])->name('proposals.create')
 Route::post('/proposals', [ProposalController::class, 'store'])->middleware('throttle:30,1')->name('proposals.store');
 
 Route::get('/recap', [ProposalRecapController::class, 'index'])->name('proposals.index');
+Route::post('/recap/auth', [ProposalReviewController::class, 'auth'])->name('recap.auth');
+Route::post('/recap/logout', [ProposalReviewController::class, 'logout'])->name('recap.logout');
+
+Route::patch('/proposals/items/{item}/review', [ProposalReviewController::class, 'update'])->name('proposals.items.review');
 
 Route::prefix('exports')->group(function (): void {
     Route::get('/proposals.csv', [ProposalExportController::class, 'csv'])->name('exports.proposals.csv');
