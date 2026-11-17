@@ -38,6 +38,7 @@ Alpine.data('proposalForm', () => {
         items: initialItems,
         notes: initialData.initialNotes || '',
         submitting: false,
+        isKeyboardVisible: false,
 
         // Draft Management State
         storageKey: 'formulary_draft_v1',
@@ -55,44 +56,58 @@ Alpine.data('proposalForm', () => {
                 return;
             }
 
-            // Priority 2: Validation errors present -> server old() input takes strict precedence
-            if (initialData.hasOldInput) {
-                return;
-            }
+            // Priority 2 & 3: Clean fresh form -> restore draft from localStorage if available (skipped if old input exists)
+            if (!initialData.hasOldInput) {
+                try {
+                    const rawDraft = localStorage.getItem(this.storageKey);
+                    if (rawDraft) {
+                        const parsed = JSON.parse(rawDraft);
+                        const hasDoctor = typeof parsed.doctorInput === 'string' && parsed.doctorInput.trim() !== '';
+                        const hasNotes = typeof parsed.notes === 'string' && parsed.notes.trim() !== '';
+                        const hasItems = Array.isArray(parsed.items) && parsed.items.some(
+                            (it) => typeof it.medicine_name === 'string' && it.medicine_name.trim() !== ''
+                        );
 
-            // Priority 3: Clean fresh form -> restore draft from localStorage if available
-            try {
-                const rawDraft = localStorage.getItem(this.storageKey);
-                if (rawDraft) {
-                    const parsed = JSON.parse(rawDraft);
-                    const hasDoctor = typeof parsed.doctorInput === 'string' && parsed.doctorInput.trim() !== '';
-                    const hasNotes = typeof parsed.notes === 'string' && parsed.notes.trim() !== '';
-                    const hasItems = Array.isArray(parsed.items) && parsed.items.some(
-                        (it) => typeof it.medicine_name === 'string' && it.medicine_name.trim() !== ''
-                    );
-
-                    if (hasDoctor || hasNotes || hasItems) {
-                        this.doctorInput = parsed.doctorInput || '';
-                        this.notes = parsed.notes || '';
-                        if (Array.isArray(parsed.items) && parsed.items.length > 0) {
-                            this.items = parsed.items.map((it) => ({
-                                medicine_name: it.medicine_name || '',
-                                principal_name: it.principal_name || '',
-                                clinical_justification: it.clinical_justification || '',
-                                autoFilled: Boolean(it.autoFilled),
-                            }));
+                        if (hasDoctor || hasNotes || hasItems) {
+                            this.doctorInput = parsed.doctorInput || '';
+                            this.notes = parsed.notes || '';
+                            if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+                                this.items = parsed.items.map((it) => ({
+                                    medicine_name: it.medicine_name || '',
+                                    principal_name: it.principal_name || '',
+                                    clinical_justification: it.clinical_justification || '',
+                                    autoFilled: Boolean(it.autoFilled),
+                                }));
+                            }
+                            this.isDraftRestored = true;
                         }
-                        this.isDraftRestored = true;
                     }
+                } catch (e) {
+                    console.warn('Failed to restore draft from localStorage', e);
                 }
-            } catch (e) {
-                console.warn('Failed to restore draft from localStorage', e);
             }
 
             // Setup reactive deep watchers for auto-save
             this.$watch('doctorInput', () => this.scheduleAutoSave());
             this.$watch('notes', () => this.scheduleAutoSave());
             this.$watch('items', () => this.scheduleAutoSave(), { deep: true });
+
+            // Tab Guard: Prompt user before leaving with unsaved changes
+            window.addEventListener('beforeunload', (e) => {
+                if (this.submitting) return;
+                if (this.hasUnsavedChanges()) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+
+            // Mobile Virtual Keyboard Detection via Visual Viewport
+            if (window.visualViewport) {
+                const initialHeight = window.visualViewport.height;
+                window.visualViewport.addEventListener('resize', () => {
+                    this.isKeyboardVisible = window.visualViewport.height < initialHeight - 120;
+                });
+            }
         },
 
         isFormEmpty() {
@@ -244,9 +259,43 @@ Alpine.data('proposalForm', () => {
             this.doctorHighlightedIndex = -1;
         },
 
+        hasUnsavedChanges() {
+            if (this.submitting) return false;
+            const hasDoctor = Boolean(this.doctorInput && this.doctorInput.trim() !== '');
+            const hasNotes = Boolean(this.notes && this.notes.trim() !== '');
+            const hasItems = Array.isArray(this.items) && this.items.some(
+                (it) => it.medicine_name && it.medicine_name.trim() !== ''
+            );
+            return hasDoctor || hasNotes || hasItems;
+        },
+
+        submitForm() {
+            if (this.submitting) return;
+            const form = document.getElementById('proposal-form');
+            if (!form) return;
+
+            // Trigger standard HTML5 validation
+            if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+                return;
+            }
+
+            this.submitting = true;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        },
+
         addItem() {
             if (this.items.length < 50) {
                 this.items.push({ medicine_name: '', principal_name: '', clinical_justification: '', autoFilled: false });
+                this.$nextTick(() => {
+                    const inputs = document.querySelectorAll('[data-medicine-input]');
+                    if (inputs.length > 0) {
+                        inputs[inputs.length - 1].focus();
+                    }
+                });
             }
         },
 
