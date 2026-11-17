@@ -2,11 +2,17 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 
 Alpine.data('proposalForm', () => {
-    let initialData = { initialItems: [], initialDoctor: '', initialNotes: '' };
+    let initialData = {
+        initialItems: [],
+        initialDoctor: '',
+        initialNotes: '',
+        hasOldInput: false,
+        hasFlashSuccess: false,
+    };
     const dataElement = document.getElementById('proposal-form-data');
     if (dataElement && dataElement.textContent) {
         try {
-            initialData = JSON.parse(dataElement.textContent);
+            initialData = Object.assign(initialData, JSON.parse(dataElement.textContent));
         } catch (e) {
             console.error('Failed to parse proposal initial data', e);
         }
@@ -32,6 +38,115 @@ Alpine.data('proposalForm', () => {
         items: initialItems,
         notes: initialData.initialNotes || '',
         submitting: false,
+
+        // Draft Management State
+        storageKey: 'formulary_draft_v1',
+        isDraftRestored: false,
+        autoSaveTimer: null,
+
+        init() {
+            // Priority 1: Submission success -> unconditionally purge draft
+            if (initialData.hasFlashSuccess) {
+                try {
+                    localStorage.removeItem(this.storageKey);
+                } catch (e) {
+                    console.warn('LocalStorage access error on purge', e);
+                }
+                return;
+            }
+
+            // Priority 2: Validation errors present -> server old() input takes strict precedence
+            if (initialData.hasOldInput) {
+                return;
+            }
+
+            // Priority 3: Clean fresh form -> restore draft from localStorage if available
+            try {
+                const rawDraft = localStorage.getItem(this.storageKey);
+                if (rawDraft) {
+                    const parsed = JSON.parse(rawDraft);
+                    const hasDoctor = typeof parsed.doctorInput === 'string' && parsed.doctorInput.trim() !== '';
+                    const hasNotes = typeof parsed.notes === 'string' && parsed.notes.trim() !== '';
+                    const hasItems = Array.isArray(parsed.items) && parsed.items.some(
+                        (it) => typeof it.medicine_name === 'string' && it.medicine_name.trim() !== ''
+                    );
+
+                    if (hasDoctor || hasNotes || hasItems) {
+                        this.doctorInput = parsed.doctorInput || '';
+                        this.notes = parsed.notes || '';
+                        if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+                            this.items = parsed.items.map((it) => ({
+                                medicine_name: it.medicine_name || '',
+                                principal_name: it.principal_name || '',
+                                clinical_justification: it.clinical_justification || '',
+                                autoFilled: Boolean(it.autoFilled),
+                            }));
+                        }
+                        this.isDraftRestored = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to restore draft from localStorage', e);
+            }
+
+            // Setup reactive deep watchers for auto-save
+            this.$watch('doctorInput', () => this.scheduleAutoSave());
+            this.$watch('notes', () => this.scheduleAutoSave());
+            this.$watch('items', () => this.scheduleAutoSave(), { deep: true });
+        },
+
+        isFormEmpty() {
+            const noDoctor = !this.doctorInput || this.doctorInput.trim() === '';
+            const noNotes = !this.notes || this.notes.trim() === '';
+            const noItems = !this.items || this.items.length === 0 || (
+                this.items.length === 1 &&
+                (!this.items[0].medicine_name || this.items[0].medicine_name.trim() === '') &&
+                (!this.items[0].principal_name || this.items[0].principal_name.trim() === '') &&
+                (!this.items[0].clinical_justification || this.items[0].clinical_justification.trim() === '')
+            );
+            return noDoctor && noNotes && noItems;
+        },
+
+        scheduleAutoSave() {
+            clearTimeout(this.autoSaveTimer);
+            this.autoSaveTimer = setTimeout(() => {
+                this.saveDraft();
+            }, 500);
+        },
+
+        saveDraft() {
+            if (this.submitting) return;
+
+            try {
+                if (this.isFormEmpty()) {
+                    localStorage.removeItem(this.storageKey);
+                    return;
+                }
+
+                const payload = {
+                    doctorInput: this.doctorInput,
+                    items: this.items,
+                    notes: this.notes,
+                    savedAt: Date.now(),
+                };
+                localStorage.setItem(this.storageKey, JSON.stringify(payload));
+            } catch (e) {
+                console.warn('Failed to save draft to localStorage', e);
+            }
+        },
+
+        clearDraft() {
+            try {
+                localStorage.removeItem(this.storageKey);
+            } catch (e) {
+                console.warn('Failed to clear draft from localStorage', e);
+            }
+
+            this.doctorInput = '';
+            this.notes = '';
+            this.items = [{ medicine_name: '', principal_name: '', clinical_justification: '', autoFilled: false }];
+            this.isDraftRestored = false;
+        },
 
         handleDoctorInput(e) {
             clearTimeout(this.doctorDebounceTimer);
