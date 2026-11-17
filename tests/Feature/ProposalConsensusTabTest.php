@@ -55,3 +55,42 @@ it('preserves filters when switching tabs and drops page parameter from tab link
     $response->assertSee(e($consensusTabUrl), false)
         ->assertSee(e($itemsTabUrl), false);
 });
+
+it('supports quick filtering for consensus medicines and renders KPI summary cards', function (): void {
+    $p1 = Proposal::create(['doctor_name' => 'dr. Budi', 'proposal_date' => '2026-11-01', 'period_year' => 2026]);
+    $p1->items()->create(['medicine_name' => 'Obat Multi DPJP', 'principal_name' => 'Kalbe', 'clinical_justification' => 'Pilihan utama terapi']);
+    $p1->items()->create(['medicine_name' => 'Obat Single DPJP', 'principal_name' => 'Sanbe']);
+
+    $p2 = Proposal::create(['doctor_name' => 'dr. Ahmad', 'proposal_date' => '2026-11-02', 'period_year' => 2026, 'notes' => 'Catatan dokter Ahmad']);
+    $p2->items()->create(['medicine_name' => 'Obat Multi DPJP', 'principal_name' => 'Dexa']);
+
+    $response = $this->get(route('proposals.index', ['tab' => 'consensus', 'min_doctors' => 2]))->assertOk();
+    $response->assertSee('Obat Multi DPJP')
+        ->assertDontSee('Obat Single DPJP')
+        ->assertSee('Hanya Usulan Konsensus (≥ 2 Dokter)')
+        ->assertSee('Semua Obat')
+        ->assertSee('Total Obat Unik Diusulkan')
+        ->assertSee('Obat Konsensus Multidokter')
+        ->assertSee('Dukungan Tertinggi')
+        ->assertSee('Kalbe')
+        ->assertSee('Dexa')
+        ->assertSee('Pilihan utama terapi')
+        ->assertSee('Catatan dokter Ahmad');
+});
+
+it('supports search filtering and displays empty state when no consensus items match', function (): void {
+    $p = Proposal::create(['doctor_name' => 'dr. Budi', 'proposal_date' => '2026-11-01', 'period_year' => 2026]);
+    $p->items()->create(['medicine_name' => 'Paracetamol 500 Mg']);
+
+    // Match
+    $this->get(route('proposals.index', ['tab' => 'consensus', 'search' => 'Paracetamol']))
+        ->assertOk()
+        ->assertSee('Paracetamol 500 Mg')
+        ->assertSee('1 Dokter');
+
+    // No match
+    $this->get(route('proposals.index', ['tab' => 'consensus', 'search' => 'Amoxicillin']))
+        ->assertOk()
+        ->assertDontSee('Paracetamol 500 Mg')
+        ->assertSee('Tidak ada usulan obat konsensus.');
+});
