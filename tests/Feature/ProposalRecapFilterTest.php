@@ -93,3 +93,32 @@ it('renders custom select components instead of native select tags for doctor an
     $response->assertSee("value: 'dr. Delfia Rahmat Gozali Sp. A'", false);
     $response->assertSee("value: 'Guardian'", false);
 });
+
+it('renders interactive sortable table headers with active direction indicators and hidden sort inputs in filter form', function (): void {
+    $response = $this->get(route('proposals.index', ['sort_by' => 'doctor', 'sort_dir' => 'asc']))->assertOk();
+
+    // Renders sort header links
+    $response->assertSee('sort_by=doctor', false)
+        ->assertSee('sort_dir=desc', false) // Next toggle direction for active column
+        ->assertSee('sort_by=medicine', false);
+
+    // Filter form carries hidden inputs
+    $response->assertSee('<input type="hidden" name="sort_by" value="doctor">', false)
+        ->assertSee('<input type="hidden" name="sort_dir" value="asc">', false);
+
+    // When visiting without sort parameters, date is active with desc default
+    $defaultResponse = $this->get(route('proposals.index'))->assertOk();
+    $defaultResponse->assertSee('sort_by=date', false)
+        ->assertSee('sort_dir=asc', false);
+
+    // Preserves other filters like search in sort header links
+    $filteredResponse = $this->get(route('proposals.index', [
+        'search' => 'paracetamol',
+        'sort_by' => 'medicine',
+        'sort_dir' => 'desc',
+    ]))->assertOk();
+
+    $filteredResponse->assertSee('search=paracetamol', false)
+        ->assertSee('sort_by=medicine', false)
+        ->assertSee('sort_dir=asc', false);
+});

@@ -89,6 +89,10 @@
                 @if (!empty($filters['period_year']))
                     <input type="hidden" name="period_year" value="{{ $filters['period_year'] }}">
                 @endif
+                @if (request('sort_by'))
+                    <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+                    <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+                @endif
 
                 <!-- Quick Year Filter Chips -->
                 <div class="flex items-center flex-wrap gap-1.5 pb-2 border-b border-slate-100 text-xs">
@@ -173,14 +177,14 @@
                     <thead class="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                         <tr>
                             <th scope="col" class="py-3 px-4 w-12 text-center">No</th>
-                            <th scope="col" class="py-3 px-4">Tanggal Usulan</th>
-                            <th scope="col" class="py-3 px-4">Periode</th>
-                            <th scope="col" class="py-3 px-4">Nama Dokter</th>
-                            <th scope="col" class="py-3 px-4">Nama Obat Diusulkan</th>
-                            <th scope="col" class="py-3 px-4">Principle / Pabrik</th>
+                            <x-table-sort-header column="date" label="Tanggal Usulan" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" default-dir="desc" />
+                            <x-table-sort-header column="period" label="Periode" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" />
+                            <x-table-sort-header column="doctor" label="Nama Dokter" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" />
+                            <x-table-sort-header column="medicine" label="Nama Obat Diusulkan" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" />
+                            <x-table-sort-header column="principal" label="Principle / Pabrik" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" />
                             <th scope="col" class="py-3 px-4 min-w-[220px]">Alasan Klinis</th>
                             <th scope="col" class="py-3 px-4 min-w-[200px]">Catatan Pengusul</th>
-                            <th scope="col" class="py-3 px-4">Waktu Input</th>
+                            <x-table-sort-header column="created_at" label="Waktu Input" :current-sort-by="$sortBy" :current-sort-dir="$sortDir" default-dir="desc" />
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
