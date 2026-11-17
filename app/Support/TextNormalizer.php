@@ -11,6 +11,9 @@ class TextNormalizer
      */
     private const PRINCIPAL_ALIASES = [
         'novel' => 'Novell',
+        'novell pharma' => 'Novell',
+        'sanbe farma' => 'Sanbe',
+        'bernofarm' => 'Berno',
         'generik novell' => 'Novell Generik',
         'yarindo generik' => 'Yarindo Generik',
         'fahrenheit generik' => 'Fahrenheit Generik',
@@ -42,8 +45,14 @@ class TextNormalizer
             return null;
         }
 
-        $lower = mb_strtolower($collapsed);
+        $stripped = (string) preg_replace('/^(?:PT|CV|UD|PD|NV)\.?\s+/ui', '', $collapsed);
 
-        return self::PRINCIPAL_ALIASES[$lower] ?? $collapsed;
+        if ($stripped === '' || preg_match('/^-+$/', $stripped)) {
+            return null;
+        }
+
+        $lower = mb_strtolower($stripped);
+
+        return self::PRINCIPAL_ALIASES[$lower] ?? $stripped;
     }
 }

@@ -19,6 +19,14 @@ it('normalizes whitespace, dash-only principals, and known csv typo aliases', fu
         ->and(TextNormalizer::normalizePrincipal('generik novell'))->toBe('Novell Generik');
 });
 
+it('strips business entity prefixes like pt and cv and resolves bernofarm alias', function (): void {
+    expect(TextNormalizer::normalizePrincipal('PT. Novell Pharma'))->toBe('Novell')
+        ->and(TextNormalizer::normalizePrincipal('CV Sanbe Farma'))->toBe('Sanbe')
+        ->and(TextNormalizer::normalizePrincipal('PT. Bernofarm'))->toBe('Berno')
+        ->and(TextNormalizer::normalizePrincipal('UD. Kimia Farma'))->toBe('Kimia Farma')
+        ->and(TextNormalizer::normalizePrincipal('PT Kalbe Farma'))->toBe('Kalbe Farma');
+});
+
 it('escapes spreadsheet formula injection prefixes without corrupting empty or normal values', function (): void {
     expect(SpreadsheetSanitizer::sanitizeCell('=HYPERLINK("http://evil")'))->toBe("'=HYPERLINK(\"http://evil\")")
         ->and(SpreadsheetSanitizer::sanitizeCell('+628123'))->toBe("'+628123")
