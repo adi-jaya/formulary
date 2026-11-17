@@ -17,6 +17,10 @@ class ProposalRecapController extends Controller
      */
     public function index(Request $request): View
     {
+        $rawSortBy = $request->query('sort_by');
+        $sortBy = $rawSortBy !== null && $rawSortBy !== '' ? (string) $rawSortBy : 'date';
+        $sortDir = strtolower((string) $request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
         $filters = [
             'period_year' => $request->query('period_year'),
             'doctor' => $request->query('doctor'),
@@ -24,6 +28,8 @@ class ProposalRecapController extends Controller
             'date_from' => $request->query('date_from'),
             'date_to' => $request->query('date_to'),
             'search' => $request->query('search'),
+            'sort_by' => $sortBy,
+            'sort_dir' => $sortDir,
         ];
 
         $query = ProposalItemRecapQuery::build($filters);
@@ -72,7 +78,9 @@ class ProposalRecapController extends Controller
             'availablePrincipals',
             'liveCsvUrl',
             'importDataFormula',
-            'feedToken'
+            'feedToken',
+            'sortBy',
+            'sortDir'
         ));
     }
 }

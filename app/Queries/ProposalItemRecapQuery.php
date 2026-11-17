@@ -10,6 +10,20 @@ use Illuminate\Database\Eloquent\Builder;
 class ProposalItemRecapQuery
 {
     /**
+     * Whitelist mapping for user-driven sort columns.
+     *
+     * @var array<string, string>
+     */
+    private const SORT_MAP = [
+        'date' => 'proposals.proposal_date',
+        'period' => 'proposals.period_year',
+        'doctor' => 'proposals.doctor_name',
+        'medicine' => 'proposal_items.medicine_name',
+        'principal' => 'proposal_items.principal_name',
+        'created_at' => 'proposal_items.created_at',
+    ];
+
+    /**
      * Builds standard recap query joining proposal_items and proposals.
      * Compatible with both SQLite and MariaDB.
      *
@@ -60,6 +74,19 @@ class ProposalItemRecapQuery
                     ->orWhere('proposals.doctor_name', 'like', "%{$term}%")
                     ->orWhere('proposal_items.principal_name', 'like', "%{$term}%");
             });
+        }
+
+        $sortBy = $filters['sort_by'] ?? null;
+        $sortDir = strtolower((string) ($filters['sort_dir'] ?? '')) === 'asc' ? 'asc' : 'desc';
+
+        if (is_string($sortBy) && isset(self::SORT_MAP[$sortBy])) {
+            $query->orderBy(self::SORT_MAP[$sortBy], $sortDir);
+
+            if ($sortBy === 'date') {
+                $query->orderBy('proposals.id', $sortDir);
+            }
+
+            return $query->orderBy('proposal_items.id');
         }
 
         return $query

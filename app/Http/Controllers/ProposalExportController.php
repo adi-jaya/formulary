@@ -95,6 +95,10 @@ class ProposalExportController extends Controller
      */
     public function xlsx(Request $request, ProposalExportService $exportService): StreamedResponse
     {
+        $rawSortBy = $request->query('sort_by');
+        $sortBy = $rawSortBy !== null && $rawSortBy !== '' ? (string) $rawSortBy : 'date';
+        $sortDir = strtolower((string) $request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
         $filters = [
             'period_year' => $request->query('period_year'),
             'doctor' => $request->query('doctor'),
@@ -102,6 +106,8 @@ class ProposalExportController extends Controller
             'date_from' => $request->query('date_from'),
             'date_to' => $request->query('date_to'),
             'search' => $request->query('search'),
+            'sort_by' => $sortBy,
+            'sort_dir' => $sortDir,
         ];
 
         $tempPath = $exportService->generateXlsx($filters);
